@@ -1,0 +1,29 @@
+<odoo>
+    <record id="view_supplier_pricelist_import_wizard" model="ir.ui.view">
+        <field name="name">supplier.pricelist.import.wizard.form</field>
+        <field name="model">supplier.pricelist.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Importeer prijslijst">
+                <group>
+                    <field name="supplier_id"/>
+                    <field name="file_data" filename="file_name"/>
+                </group>
+
+                <group string="Kolommen bevestigen">
+                    <field name="column_barcode"/>
+                    <field name="column_sku"/>
+                    <field name="column_price"/>
+                    <field name="column_qty"/>
+                </group>
+
+                <footer>
+                    <button string="Importeren"
+                            type="object"
+                            name="action_import_pricelist"
+                            class="btn-primary"/>
+                    <button string="Annuleren" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
