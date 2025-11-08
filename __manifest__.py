@@ -13,8 +13,8 @@ Geschikt voor Odoo 18 Community (Synology/Docker).
     "depends": ["base", "product", "purchase"],
     "data": [
         "security/ir.model.access.csv",
+        "views/product_supplierinfo_views.xml",
         "views/wizard_action.xml",
-        "views/supplier_pricelist_views.xml",
         "views/wizard_views.xml",
         "views/menus.xml",
     ],

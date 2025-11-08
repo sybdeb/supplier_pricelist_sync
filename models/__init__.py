@@ -1,1 +1,1 @@
-from . import supplier_pricelist
+from . import product_supplierinfo

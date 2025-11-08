@@ -5,22 +5,41 @@
         <field name="arch" type="xml">
             <form string="Importeer prijslijst">
                 <group>
-                    <field name="supplier_id"/>
-                    <field name="file_data" filename="file_name"/>
+                    <group>
+                        <field name="supplier_id" required="1"/>
+                        <field name="file_data" filename="file_name"/>
+                        <field name="file_name" invisible="1"/>
+                    </group>
+                    <group>
+                        <field name="column_partner" readonly="1" invisible="not supplier_id"/>
+                        <field name="headers_detected" readonly="1" invisible="not file_data"/>
+                    </group>
                 </group>
-
-                <group string="Kolommen bevestigen">
-                    <field name="column_barcode"/>
-                    <field name="column_sku"/>
-                    <field name="column_price"/>
-                    <field name="column_qty"/>
-                </group>
+                
+                <div class="alert alert-info" role="alert" invisible="not file_data">
+                    <strong>Leverancier wordt automatisch ingevuld:</strong> De geselecteerde leverancier 
+                    (<field name="supplier_id" readonly="1" nolabel="1"/>) wordt automatisch gekoppeld 
+                    aan alle geïmporteerde product.supplierinfo records.
+                </div>
+                
+                <div class="alert alert-warning" role="alert" invisible="file_data">
+                    <strong>Stap 1:</strong> Selecteer een leverancier<br/>
+                    <strong>Stap 2:</strong> Upload een CSV bestand<br/>
+                    <strong>Stap 3:</strong> Klik op "Start Import" om naar de import wizard te gaan
+                </div>
 
                 <footer>
-                    <button string="Importeren"
+                    <button string="Start Import (Automatisch)"
                             type="object"
                             name="action_import_pricelist"
-                            class="btn-primary"/>
+                            class="btn-primary"
+                            invisible="not file_data or not supplier_id"/>
+                    <button string="Handmatige Import"
+                            type="object"
+                            name="action_manual_import"
+                            class="btn-secondary"
+                            invisible="not supplier_id"
+                            help="Open Odoo's standaard import waar je handmatig een CSV kunt uploaden"/>
                     <button string="Annuleren" special="cancel"/>
                 </footer>
             </form>
