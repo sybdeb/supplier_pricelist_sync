@@ -33,62 +33,194 @@ class SupplierPricelistImportWizard(models.TransientModel):
     )
     
     # Preview velden
-    headers_detected = fields.Text(
-        string="Gedetecteerde kolommen",
+    csv_headers = fields.Char(
+        string="CSV Headers",
         readonly=True,
-        help="Automatisch gedetecteerde kolommen uit het CSV bestand"
+        help="Headers uit het CSV bestand"
     )
     
-    column_partner = fields.Char(
-        string="Partner/Leverancier kolom",
+    csv_preview = fields.Html(
+        string="CSV Preview (eerste 5 regels)",
         readonly=True,
-        help="Deze wordt automatisch ingevuld met de geselecteerde leverancier"
+        help="Voorvertoning van de eerste 5 regels uit het CSV"
+    )
+    
+    csv_confirmed = fields.Boolean(
+        string="CSV Bevestigd",
+        default=False,
+        help="Of de CSV preview is bevestigd door de gebruiker"
+    )
+    
+    partner_column_filled = fields.Boolean(
+        string="Partner kolom gevuld",
+        default=False,
+        readonly=True,
+        help="Of de partner kolom automatisch is gevuld"
     )
 
 
 
     # ------------------------------------------------------------
-    # AUTO-DETECTIE VAN CSV KOLOMMEN
+    # CSV PREVIEW GENERATIE
     # ------------------------------------------------------------
     @api.onchange('file_data', 'file_name')
     def _onchange_file_data(self):
-        """Detecteer automatisch CSV kolommen wanneer bestand wordt geüpload."""
+        """Genereer CSV preview wanneer bestand wordt geüpload."""
         if not self.file_data:
-            self.headers_detected = ""
+            self.csv_headers = ""
+            self.csv_preview = ""
+            self.csv_confirmed = False
+            self.partner_column_filled = False
             return
             
         try:
-            # Gebruik Odoo's import systeem voor parsing
-            Import = self.env["base_import.import"].create({
-                "res_model": "product.supplierinfo",
-                "file": self.file_data,
-                "file_type": "text/csv",
-            })
-            preview = Import._convert_import_data(base64.b64decode(self.file_data), "csv")
-            headers = preview.get('headers', [])
+            # Parse CSV data
+            csv_data = base64.b64decode(self.file_data).decode('utf-8')
+            lines = csv_data.strip().split('\n')
             
-            if headers:
-                self.headers_detected = ", ".join(headers)
-                # Partner kolom wordt automatisch ingevuld
-                self.column_partner = f"Automatisch: {self.supplier_id.name if self.supplier_id else 'Geselecteerde leverancier'}"
-            else:
-                self.headers_detected = "Geen kolommen gedetecteerd"
+            if not lines:
+                self.csv_preview = "<p>Leeg CSV bestand</p>"
+                return
+            
+            # Parse headers
+            import csv
+            from io import StringIO
+            reader = csv.reader(StringIO(csv_data))
+            rows = list(reader)
+            
+            if len(rows) < 1:
+                self.csv_preview = "<p>Geen data gevonden in CSV</p>"
+                return
+                
+            headers = rows[0]
+            self.csv_headers = ", ".join(headers)
+            
+            # Genereer HTML preview tabel
+            html = ["<table class='table table-striped'>"]
+            
+            # Headers
+            html.append("<thead><tr>")
+            for header in headers:
+                html.append(f"<th>{header}</th>")
+            html.append("</tr></thead>")
+            
+            # Preview data (eerste 5 regels)
+            html.append("<tbody>")
+            preview_rows = rows[1:6]  # Skip header, take 5 rows
+            for row in preview_rows:
+                html.append("<tr>")
+                for cell in row:
+                    html.append(f"<td>{cell[:50]}{'...' if len(cell) > 50 else ''}</td>")
+                html.append("</tr>")
+            html.append("</tbody></table>")
+            
+            total_rows = len(rows) - 1  # Exclude header
+            html.append(f"<p><strong>Totaal regels in CSV:</strong> {total_rows}</p>")
+            
+            self.csv_preview = "".join(html)
+            self.csv_confirmed = False
+            self.partner_column_filled = False
                 
         except Exception as e:
-            self.headers_detected = f"Fout bij lezen CSV: {str(e)}"
+            self.csv_preview = f"<p class='text-danger'>Fout bij lezen CSV: {str(e)}</p>"
 
     # ------------------------------------------------------------
-    # REDIRECT NAAR ODOO'S NATIVE IMPORT MET LEVERANCIER PRE-FILL
+    # CSV BEVESTIGING EN PARTNER AUTO-FILL
     # ------------------------------------------------------------
-    def action_import_pricelist(self):
-        """Open Odoo's native import wizard met leverancier context en CSV data."""
+    def action_confirm_csv(self):
+        """Bevestig CSV en voeg partner_id kolom toe (JOUW BRILJANTE IDEE!)."""
         if not self.supplier_id:
             raise UserError(_("Selecteer eerst een leverancier"))
         if not self.file_data:
             raise UserError(_("Upload eerst een CSV bestand"))
-        
+            
         try:
-            # Maak een base_import.import record aan met onze data
+            # Parse CSV om partner_id kolom toe te voegen
+            csv_data = base64.b64decode(self.file_data).decode('utf-8')
+            
+            import csv
+            from io import StringIO
+            reader = csv.reader(StringIO(csv_data))
+            rows = list(reader)
+            
+            if len(rows) < 1:
+                raise UserError(_("Geen data gevonden in CSV"))
+            
+            headers = rows[0]
+            
+            # Voeg partner_id/.id kolom toe (Odoo import formaat voor database ID!)
+            partner_col_name = "partner_id/.id"  # .id betekent: gebruik database ID
+            if partner_col_name not in headers:
+                headers.append(partner_col_name)
+                partner_col_index = len(headers) - 1
+            else:
+                partner_col_index = headers.index(partner_col_name)
+            
+            # Vul alle regels met supplier ID (geen naam - ID!)
+            updated_rows = [headers]
+            for row in rows[1:]:  # Skip header
+                # Extend row als partner_id kolom nieuw is
+                while len(row) <= partner_col_index:
+                    row.append("")
+                # Vul met SUPPLIER ID (database koppeling!)
+                row[partner_col_index] = str(self.supplier_id.id)
+                updated_rows.append(row)
+            
+            # Update CSV met partner_id kolom
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerows(updated_rows)
+            updated_csv = output.getvalue()
+            
+            # Update file_data met partner_id CSV
+            self.file_data = base64.b64encode(updated_csv.encode('utf-8'))
+            
+            # Status updates
+            self.csv_confirmed = True
+            self.partner_column_filled = True
+            
+            # Update headers display om partner_id zichtbaar te maken
+            self.csv_headers = ", ".join(headers)
+            
+            # Return wizard refresh om knoppen te tonen
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Importeer prijslijst',
+                'res_model': 'supplier.pricelist.import.wizard',
+                'res_id': self.id,
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {'csv_confirmed': True}
+            }
+            
+        except Exception as e:
+            raise UserError(_("Fout bij bevestigen CSV: %s") % str(e))
+
+    # ------------------------------------------------------------
+    # DOWNLOAD CSV MET PARTNER_ID (DEBUG/TEST FUNCTIE)
+    # ------------------------------------------------------------
+    def action_download_csv_with_partner(self):
+        """Download de CSV met partner_id kolom toegevoegd voor handmatige test."""
+        if not self.csv_confirmed:
+            raise UserError(_("Bevestig eerst de CSV preview"))
+            
+        # De file_data bevat al de CSV met partner_id (toegevoegd in action_confirm_csv)
+        return {
+            'type': 'ir.actions.act_url',
+            'url': f'/web/content?model=supplier.pricelist.import.wizard&id={self.id}&field=file_data&filename={self.file_name or "prijslijst_met_partner.csv"}&download=true',
+            'target': 'self',
+        }
+
+    # ------------------------------------------------------------
+    # AUTOMATISCH LADEN IN ODOO IMPORT
+    # ------------------------------------------------------------
+    def action_load_in_odoo_import(self):
+        """Laad CSV in Odoo's import wizard met partner_id pre-filled."""
+        if not self.csv_confirmed:
+            raise UserError(_("Bevestig eerst de CSV preview"))
+            
+        try:
+            # Stap 1: Maak import record met CSV data
             import_record = self.env["base_import.import"].create({
                 "res_model": "product.supplierinfo",
                 "file": self.file_data,
@@ -96,76 +228,44 @@ class SupplierPricelistImportWizard(models.TransientModel):
                 "file_type": "text/csv",
             })
             
-            # Forceer het parsen van de CSV data
-            csv_data = base64.b64decode(self.file_data)
-            preview = import_record._convert_import_data(csv_data, "csv")
-            
-            # Update het import record met parsed data
-            import_record.write({
-                'file': self.file_data,
-                'file_name': self.file_name or "prijslijst.csv",
-            })
-            
-            # Context met supplier info - STERKER
+            # Stap 2: Context met default partner_id voor nieuwe records
             ctx = dict(self.env.context)
             ctx.update({
                 'default_partner_id': self.supplier_id.id,
-                'supplier_import': True,
-                'supplier_name': self.supplier_id.name,
-                'active_model': 'product.supplierinfo',
-                'import_file': True,
+                'default_product_id': False,  # Wordt via mapping bepaald
             })
             
-            # Open import wizard met onze data
+            # Stap 3: Open import wizard met GELADEN CSV
             return {
-                'type': 'ir.actions.act_window',
-                'name': f'Import Prijslijst - {self.supplier_id.name}',
-                'res_model': 'base_import.import',
-                'res_id': import_record.id,
-                'view_mode': 'form',
-                'target': 'new',
-                'context': ctx,
-                'flags': {'form': {'action_buttons': True}},
+                'type': 'ir.actions.client',
+                'tag': 'import',
+                'params': {
+                    'model': 'product.supplierinfo',
+                    'context': ctx,
+                    'import_id': import_record.id,  # DIT laadt de CSV!
+                }
             }
             
         except Exception as e:
-            # Fallback: redirect naar standard import URL met context
-            context_data = {
-                'default_partner_id': self.supplier_id.id,
-                'supplier_import': True,
-                'supplier_name': self.supplier_id.name,
-                'active_model': 'product.supplierinfo',
-            }
-            
-            context_json = json.dumps(context_data)
-            context_encoded = quote(context_json)
-            import_url = f"/odoo/action-256/import?active_model=product.supplierinfo&context={context_encoded}"
-            
-            return {
-                'type': 'ir.actions.act_url',
-                'url': import_url,
-                'target': 'new',
-            }
+            raise UserError(_("Fout bij laden CSV in import: %s") % str(e))
+
     
-    def action_manual_import(self):
-        """Open Odoo's standaard import wizard zonder CSV upload."""
-        if not self.supplier_id:
-            raise UserError(_("Selecteer eerst een leverancier"))
-        
-        # Context voor handmatige import
-        context_data = {
-            'default_partner_id': self.supplier_id.id,
-            'supplier_import': True,
-            'supplier_name': self.supplier_id.name,
-            'active_model': 'product.supplierinfo',
-        }
-        
-        context_json = json.dumps(context_data)
-        context_encoded = quote(context_json)
-        import_url = f"/odoo/action-256/import?active_model=product.supplierinfo&context={context_encoded}"
+    def action_reset(self):
+        """Reset de wizard voor een nieuwe CSV."""
+        self.file_data = False
+        self.file_name = ""
+        self.csv_headers = ""
+        self.csv_preview = ""
+        self.csv_confirmed = False
+        self.partner_column_filled = False
         
         return {
-            'type': 'ir.actions.act_url',
-            'url': import_url,
-            'target': 'new',
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Reset'),
+                'message': _('Je kunt nu een nieuwe CSV uploaden'),
+                'type': 'info',
+            }
         }
+

@@ -1,10 +1,13 @@
 {
-    "name": "Supplier Pricelist Sync (Simplified v1)",
-    "version": "18.0.1.0",
-    "summary": "Importeer leveranciersprijslijsten via CSV",
+    "name": "Supplier Pricelist Sync v1.3 (Enhanced)",
+    "version": "18.0.1.3",
+    "summary": "Importeer leveranciersprijslijsten via CSV met preview en partner_id",
     "description": """
-Eenvoudige module om prijslijsten van leveranciers te importeren via een CSV-bestand.
-Geschikt voor Odoo 18 Community (Synology/Docker).
+Enhanced module voor het importeren van leveranciersprijslijsten:
+- CSV preview met eerste 5 regels
+- Automatische partner_id kolom toevoeging
+- Direct import in Odoo's native wizard
+- Geschikt voor Odoo 18 Community (Synology/Docker)
 """,
     "author": "Nerbys",
     "website": "https://nerbys.nl",

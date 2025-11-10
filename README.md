@@ -23,17 +23,26 @@ It extends Odoo’s standard import wizard (`base_import.import`) by adding colu
 - Weergave gevonden kolommen  
 - Kolomvelden en “Importeren”-knop pas zichtbaar na upload  
 
-#### v1.2 (gepland / planned)
-- Echte import naar supplierinfo  
-- Meldtekst: “X verwerkt, Y nieuw, Z fout”  
+#### v1.2 ✅
+- Redirect naar Odoo's native import met supplier context
+- CSV preview met eerste 5 regels
+- Download knop voor bevestigde CSV
 
-#### v1.3 (gepland / planned)
-- Mapping per leverancier  
-- Automatisch invullen kolommen bij volgende upload  
+#### v1.3 (in progress / bezig) 🚧
+- Auto-detect kolomnamen (EAN, SKU, Prijs, Voorraad)
+- Automatisch partner_id/.id kolom toevoegen voor import
+- CSV met partner kolom downloaden of direct importeren
+- **Status**: Wizard werkt, handmatige import mogelijk
+- **Blokkade**: Automatische redirect naar import met vooraf ingeladen CSV niet gerealiseerd
 
 #### v1.4 (gepland / planned)
-- Importgeschiedenis  
-- Statistieken en logs per leverancier  
+- Importgeschiedenis tracking
+- Mapping opslag per leverancier
+- Statistieken en logs
+
+#### v1.5 (gepland / planned)
+- Directe Python import (bypass Odoo wizard)
+- Cron/API functionaliteit
 
 #### v1.5 (optioneel / optional)
 - Cronjob of API-sync per leverancier  
@@ -42,18 +51,56 @@ It extends Odoo’s standard import wizard (`base_import.import`) by adding colu
 
 ### 🧱 Ontwerpprincipe / Design Principles
 **NL:**  
-- Gebaseerd op Odoo’s `base_import.import` wizard (zoals bij `product.supplierinfo`)  
-- Geen eigen parser, alleen extra logica bovenop Odoo’s standaard import  
-- Open-source structuur, getest op Odoo 18 Community  
+- **v1.2 aanpak**: Redirect naar Odoo's native import met supplier context
+- Preview functionaliteit om CSV te controleren voor import
+- Auto-toevoegen van partner_id/.id kolom voor Odoo import compatibility
+- **Huidige blokkade**: Automatisch CSV inladen in import wizard werkt niet volledig
+- **Workaround**: Handmatige import via "Download CSV" knop mogelijk
+- **Toekomstig**: Directe Python import implementeren (v1.5) om Odoo wizard te bypassen
 
 **EN:**  
-- Built upon Odoo’s native `base_import.import` wizard (used by `product.supplierinfo`)  
-- No custom parser; adds logic on top of Odoo’s existing import system  
-- Open-source structure, tested with Odoo 18 Community Edition  
+- **v1.2 approach**: Redirect to Odoo's native import with supplier context
+- Preview functionality to verify CSV before import
+- Auto-add partner_id/.id column for Odoo import compatibility
+- **Current blocker**: Automatic CSV loading in import wizard not fully working
+- **Workaround**: Manual import via "Download CSV" button available
+- **Future**: Direct Python import implementation (v1.5) to bypass Odoo wizard
 
 ---
 
-### 📁 Installatie / Installation
+### � Huidige Status / Current Status (v1.3-dev)
+
+#### ✅ Werkend / Working
+- CSV upload met leverancier selectie
+- Preview van eerste 5 regels na upload
+- Automatische header detectie via `base_import.import`
+- Auto-toevoegen van `partner_id/.id` kolom met leverancier ID
+- Download knop voor aangepaste CSV met partner kolom
+- Wizard interface volledig functioneel
+
+#### 🚧 In Development / Blokkades
+- **Automatische CSV loading**: Redirect naar `/base_import/` met pre-loaded file werkt niet
+  - Geprobeerd: `action_redirect_to_import()` met verschillende parameter combinaties
+  - Odoo's import wizard accepteert geen externe file data via context/params
+  - **Workaround**: Gebruiker kan CSV downloaden en handmatig importeren
+  
+#### 📋 Volgende Stappen / Next Steps
+1. **Optie A**: Directe Python import implementeren (v1.5 functionaliteit vervroegen)
+   - Bypass Odoo's import wizard volledig
+   - Eigen matching logica: EAN → `product.product.barcode`, SKU → `default_code`
+   - Direct schrijven naar `product.supplierinfo` model
+   
+2. **Optie B**: Import wizard verbeteren
+   - Onderzoek Odoo source code voor file pre-loading
+   - Mogelijk via `base_import.import` record creation met file attachment
+
+3. **Mapping opslag** (v1.4)
+   - Per leverancier kolom mapping opslaan
+   - Automatisch hergebruiken bij volgende imports
+
+---
+
+### �📁 Installatie / Installation
 **NL:**  
 Plaats de map `supplier_pricelist_sync/` in `/mnt/extra-addons/`  
 en activeer de module via Apps in debugmodus.  
