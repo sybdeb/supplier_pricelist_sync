@@ -33,12 +33,13 @@
                 </group>
                 
                 <!-- Bevestiging sectie -->
-                <div class="alert alert-success" role="alert" invisible="not csv_confirmed">
+<div class="alert alert-success" role="alert" invisible="not csv_confirmed">
                     <strong>✓ CSV Bevestigd!</strong><br/>
-                    Partner/Leverancier kolom is automatisch gevuld met: <strong><field name="supplier_id" readonly="1" nolabel="1"/></strong><br/>
+                    Partner/Leverancier: <strong><field name="supplier_id" readonly="1" nolabel="1"/></strong><br/>
                     <field name="partner_column_filled" readonly="1" invisible="1"/>
                     <br/>
-                    <strong>Volgende stap:</strong> Download de CSV en upload handmatig in Odoo's import.
+                    <strong>Volgende stap:</strong> Klik op "Odoo Import Wizard" om de prijslijst te importeren.<br/>
+                    <small><em>Belangrijk: Alle oude prijslijst regels van deze leverancier worden vervangen door de nieuwe import.</em></small>
                 </div>
                 
                 <!-- Instructies -->
@@ -66,21 +67,29 @@
                             class="btn-success"
                             invisible="not file_data or not supplier_id or csv_confirmed"/>
                     
+                    <!-- NIEUWE PYTHON IMPORT KNOP -->
+                    <button string="🚀 Start Python Import"
+                            type="object"
+                            name="action_python_import"
+                            class="btn-primary"
+                            invisible="not csv_confirmed"
+                            help="Importeer direct met intelligente duplicate handling"/>
+                    
                     <!-- Download CSV met partner_id (DEBUG/TEST) -->
-                    <button string="💾 Download CSV met partner_id"
+                    <button string="💾 Download CSV"
                             type="object"
                             name="action_download_csv_with_partner"
-                            class="btn-info"
+                            class="btn-secondary"
                             invisible="not csv_confirmed"
                             help="Download de CSV met partner_id kolom voor handmatige test"/>
                     
-                    <!-- Auto-load in import knop -->
-                    <button string="🚀 Open in Import"
+                    <!-- Auto-load in import knop (OUDE METHODE) -->
+                    <button string="� Odoo Import Wizard"
                             type="object"
                             name="action_load_in_odoo_import"
-                            class="btn-primary"
+                            class="btn-info"
                             invisible="not csv_confirmed"
-                            help="Open automatisch in Odoo's import wizard met CSV geladen"/>
+                            help="Open Odoo's standaard import wizard (maakt dubbele regels!)"/>
                     
                     <!-- Reset knop -->
                     <button string="🔄 Nieuwe CSV"
