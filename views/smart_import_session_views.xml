@@ -44,12 +44,12 @@
                     <notebook states="loaded,mapped">
                         <page string="🎯 Column Mapping" name="mapping">
                             <field name="mapping_lines" nolabel="1">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="csv_index" readonly="1"/>
                                     <field name="csv_column" readonly="1"/>
                                     <field name="sample_data" readonly="1"/>
                                     <field name="odoo_field" required="0"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         
@@ -98,7 +98,7 @@
     <!-- Menu item for persistent sessions -->
     <menuitem id="menu_smart_import_session" 
               name="Smart Import (Persistent)" 
-              parent="menu_supplier_pricelist_import"
+              parent="menu_supplier_pricelist_root"
               action="action_smart_import_session"
               sequence="15"/>
 

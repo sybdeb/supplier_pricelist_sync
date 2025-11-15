@@ -21,7 +21,7 @@ Built for Odoo 18 Community Edition
         "security/ir.model.access.csv",
         "views/dashboard_views.xml",
         "views/smart_import_views.xml",
-        # "views/smart_import_session_views.xml",  # DISABLED: View conflicts - session model available but not exposed
+        "views/smart_import_session_views.xml",  # ENABLED: Fixed tree->list and menu parent reference
         "views/supplier_mapping_template_views.xml",
         "views/product_supplierinfo_views.xml",
         "views/product_template_views.xml",
