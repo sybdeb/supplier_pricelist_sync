@@ -1,47 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Uitbreiding van product.supplierinfo form view -->
-    <record id="product_supplierinfo_form_inherit" model="ir.ui.view">
+    <!-- Extend product.supplierinfo form view with extra fields -->
+    <record id="product_supplierinfo_form_view_inherit" model="ir.ui.view">
         <field name="name">product.supplierinfo.form.inherit</field>
         <field name="model">product.supplierinfo</field>
         <field name="inherit_id" ref="product.product_supplierinfo_form_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='min_qty']" position="after">
-                
-                <!-- Import velden groep -->
-                <group string="CSV Import Velden" invisible="import_barcode == False and import_sku == False">
-                    <field name="import_barcode" readonly="1"/>
-                    <field name="import_sku" readonly="1"/>
-                    <field name="import_brand" readonly="1"/>
-                    <field name="import_description" readonly="1"/>
-                    <field name="import_qty_available" readonly="1"/>
-                </group>
-                
-                <!-- Product info groep -->
-                <group string="Product Informatie">
-                    <field name="product_barcode" readonly="1"/>
-                    <field name="product_default_code" readonly="1"/>
-                    <field name="product_name" readonly="1"/>
-                </group>
-                
-                <!-- Leverancier specifieke info -->
-                <group string="Leverancier Info">
-                    <field name="supplier_qty_available"/>
-                </group>
-                
+            <xpath expr="//field[@name='delay']" position="after">
+                <field name="order_qty"/>
+                <field name="supplier_stock"/>  
+                <field name="supplier_sku"/>
+            </xpath>
+            <!-- Product identification fields voor CSV matching -->
+            <xpath expr="//field[@name='supplier_sku']" position="after">
+                <separator string="Product Identificatie (voor CSV matching)"/>
+                <field name="product_name" readonly="1"/>
+                <field name="product_barcode" readonly="1"/>
+                <field name="product_default_code" readonly="1"/>
             </xpath>
         </field>
     </record>
-
-    <!-- Uitbreiding van product.supplierinfo tree view -->
-    <record id="product_supplierinfo_tree_inherit" model="ir.ui.view">
+    
+    <!-- Extend product.supplierinfo tree view -->
+    <record id="product_supplierinfo_tree_view_inherit" model="ir.ui.view">
         <field name="name">product.supplierinfo.tree.inherit</field>
         <field name="model">product.supplierinfo</field>
         <field name="inherit_id" ref="product.product_supplierinfo_tree_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='min_qty']" position="after">
-                <field name="product_barcode" optional="show"/>
-                <field name="product_default_code" optional="show"/>
+            <xpath expr="//field[@name='price']" position="after">
+                <field name="order_qty"/>
+                <field name="supplier_stock" optional="hide"/>
+                <field name="supplier_sku" optional="hide"/>
+                <field name="product_name" optional="hide"/>
+                <field name="product_barcode" optional="hide"/>
+                <field name="product_default_code" optional="hide"/>
             </xpath>
         </field>
     </record>

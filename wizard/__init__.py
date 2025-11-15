@@ -1,1 +1,1 @@
-from . import supplier_pricelist_import_wizard
+# Old wizard system removed - now using Smart Import in models/

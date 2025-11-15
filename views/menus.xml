@@ -1,13 +1,33 @@
 <odoo>
     <!-- Hoofdmenu -->
     <menuitem id="menu_supplier_pricelist_root"
-              name="Prijslijst Import"
+              name="Supplier Import"
               sequence="10"/>
 
-    <!-- Submenu voor wizard -->
+    <!-- Dashboard (main entry point) -->
+    <menuitem id="menu_supplier_pricelist_dashboard"
+              name="📊 Dashboard" 
+              parent="menu_supplier_pricelist_root"
+              action="action_supplier_pricelist_dashboard"
+              sequence="10"/>
+
+    <!-- Direct wizard access (submenu) -->
     <menuitem id="menu_supplier_pricelist_import_wizard"
-              name="Importeer prijslijst"
+              name="📁 Manual Import"
               parent="menu_supplier_pricelist_root"
               action="action_supplier_pricelist_import_wizard"
               sequence="20"/>
+
+    <!-- Mappings management -->
+    <menuitem id="menu_supplier_pricelist_mappings"
+              name="🗺️ Column Mappings"
+              parent="menu_supplier_pricelist_root"
+              action="action_base_import_mapping_custom"
+              sequence="30"/>
+
+    <!-- Import History -->
+    <menuitem id="menu_supplier_import_history"
+              name="📊 Import History"
+              parent="menu_supplier_pricelist_root"
+              sequence="40"/>
 </odoo>

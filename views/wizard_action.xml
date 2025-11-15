@@ -1,8 +1,9 @@
 <odoo>
     <record id="action_supplier_pricelist_import_wizard" model="ir.actions.act_window">
-        <field name="name">Importeer prijslijst</field>
-        <field name="res_model">supplier.pricelist.import.wizard</field>
+        <field name="name">🧠 Smart Import System</field>
+        <field name="res_model">supplier.smart.import</field>
         <field name="view_mode">form</field>
+        <field name="view_id" ref="view_supplier_smart_import_form"/>
         <field name="target">new</field>
     </record>
 </odoo>

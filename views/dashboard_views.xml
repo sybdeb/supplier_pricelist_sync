@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Dashboard Form View -->
+    <record id="view_supplier_pricelist_dashboard_form" model="ir.ui.view">
+        <field name="name">supplier.pricelist.dashboard.form</field>
+        <field name="model">supplier.pricelist.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Supplier Pricelist Dashboard" create="false" edit="false">
+                <header>
+                    <button name="action_open_manual_import" 
+                            string="Manual Import" 
+                            type="object" 
+                            class="btn-primary"
+                            icon="fa-upload"/>
+                    <button name="action_configure_automation" 
+                            string="Automation" 
+                            type="object"
+                            icon="fa-cog"
+                            invisible="True"/>  <!-- Future -->
+                </header>
+                
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    
+                    <!-- Statistics Cards -->
+                    <div class="row">
+                        <div class="col-md-3 col-6">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <i class="fa fa-upload fa-2x text-primary mb-2"/>
+                                    <h3><field name="total_imports"/></h3>
+                                    <p class="text-muted">Total Imports</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 col-6">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <i class="fa fa-users fa-2x text-success mb-2"/>
+                                    <h3><field name="active_suppliers"/></h3>
+                                    <p class="text-muted">Active Suppliers</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 col-6">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <i class="fa fa-map fa-2x text-info mb-2"/>
+                                    <h3><field name="mappings_count"/></h3>
+                                    <p class="text-muted">Saved Mappings</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 col-6">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <i class="fa fa-clock-o fa-2x text-warning mb-2"/>
+                                    <p class="text-muted mb-1">Last Import</p>
+                                    <field name="last_import_date" widget="datetime"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h3>Quick Actions</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Import Management</h5>
+                                </div>
+                                <div class="card-body">
+                                    <button name="action_open_manual_import" 
+                                            string="📁 New Manual Import" 
+                                            type="object" 
+                                            class="btn btn-primary btn-block mb-2"/>
+                                    <button name="action_view_import_history" 
+                                            string="📊 View Import History" 
+                                            type="object" 
+                                            class="btn btn-info btn-block"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Configuration</h5>
+                                </div>
+                                <div class="card-body">
+                                    <button name="action_view_mappings" 
+                                            string="🗺️ Column Mappings" 
+                                            type="object" 
+                                            class="btn btn-success btn-block mb-2"/>
+                                    <button name="action_manage_suppliers" 
+                                            string="👥 Manage Suppliers" 
+                                            type="object" 
+                                            class="btn btn-warning btn-block"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Import History -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h3>Recent Imports</h3>
+                            <field name="manual_import_ids" readonly="1">
+                                <list limit="10" create="false" edit="false">
+                                    <field name="create_date" string="Date"/>
+                                    <field name="supplier_id" string="Supplier"/>
+                                    <field name="filename" string="File"/>
+                                    <field name="records_processed" string="Records"/>
+                                    <field name="status" widget="badge" 
+                                           decoration-success="status == 'success'"
+                                           decoration-danger="status == 'error'"
+                                           decoration-warning="status == 'partial'"/>
+                                    <field name="import_method" string="Method"/>
+                                    <field name="user_id" string="User"/>
+                                </list>
+                            </field>
+                        </div>
+                    </div>
+                    
+                    <!-- Future: Automation Status Panel (hidden for now) -->
+                    <div class="row mt-4" invisible="True">
+                        <div class="col-12">
+                            <h3>Automation Status</h3>
+                            <div class="alert alert-info">
+                                <strong>Coming in v1.5:</strong> Cron jobs, API endpoints, and automated import scheduling
+                            </div>
+                        </div>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Dashboard Action -->
+    <record id="action_supplier_pricelist_dashboard" model="ir.actions.act_window">
+        <field name="name">Supplier Import Dashboard</field>
+        <field name="res_model">supplier.pricelist.dashboard</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{'create': False}</field>
+    </record>
+    
+    <!-- Import History Views -->
+    <record id="view_supplier_import_history_list" model="ir.ui.view">
+        <field name="name">supplier.pricelist.import.history.list</field>
+        <field name="model">supplier.pricelist.import.history</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false">
+                <field name="create_date" string="Import Date"/>
+                <field name="supplier_id"/>
+                <field name="filename"/>
+                <field name="records_processed"/>
+                <field name="records_created"/>
+                <field name="records_updated"/>
+                <field name="status" widget="badge" 
+                       decoration-success="status == 'success'"
+                       decoration-danger="status == 'error'"
+                       decoration-warning="status == 'partial'"/>
+                <field name="import_method"/>
+                <field name="user_id"/>
+                <field name="duration" string="Duration (s)"/>
+            </list>
+        </field>
+    </record>
+    
+    <record id="view_supplier_import_history_form" model="ir.ui.view">
+        <field name="name">supplier.pricelist.import.history.form</field>
+        <field name="model">supplier.pricelist.import.history</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false">
+                <header>
+                    <field name="status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="supplier_id"/>
+                            <field name="filename"/>
+                            <field name="import_method"/>
+                            <field name="user_id"/>
+                        </group>
+                        <group>
+                            <field name="records_processed"/>
+                            <field name="records_created"/>
+                            <field name="records_updated"/>
+                            <field name="duration"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Details" invisible="error_message == False">
+                            <field name="error_message"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Custom Action for Base Import Mapping -->
+    <record id="action_base_import_mapping_custom" model="ir.actions.act_window">
+        <field name="name">Import Column Mappings</field>
+        <field name="res_model">base_import.mapping</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No column mappings found!
+            </p>
+            <p>
+                Column mappings are automatically created when you import CSV files through the wizard.
+                Each supplier can have unique column mappings that are remembered for future imports.
+            </p>
+        </field>
+    </record>
+</odoo>
