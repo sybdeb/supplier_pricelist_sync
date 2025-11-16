@@ -151,14 +151,20 @@ class DirectImport(models.TransientModel):
         if col_lower in ['prijs', 'price', 'unitprice', 'cost', 'inkoopprijs', 'prijs_incl_heffing']:
             return 'supplierinfo.price'
         
-        if col_lower in ['voorraad', 'stock', 'quantity', 'qty', 'available', 'voorraad_leverancier']:
+        # VOORRAAD LEVERANCIER (stock at supplier)
+        if col_lower in ['voorraad', 'voorraad_leverancier', 'supplier_stock', 'stock_supplier']:
             return 'supplierinfo.supplier_stock'
+        
+        # MINIMALE BESTEL HOEVEELHEID (MOQ)
+        if col_lower in ['min_qty', 'moq', 'minimum_order_quantity', 'min_quantity', 'minimum_qty']:
+            return 'supplierinfo.min_qty'
+        
+        # BESTEL AANTAL (order quantity - vaak gebruikt voor verpakkingseenheden)
+        if col_lower in ['order_qty', 'bestel_aantal', 'order_quantity', 'verpakkingseenheid']:
+            return 'supplierinfo.order_qty'
         
         if col_lower in ['levertijd', 'delivery_time', 'lead_time', 'days', 'delay']:
             return 'supplierinfo.delay'
-        
-        if col_lower in ['min_qty', 'moq', 'minimum_order_quantity', 'min_quantity', 'aantal']:
-            return 'supplierinfo.min_qty'
         
         if col_lower in ['vendor_product_code', 'supplier_code', 'leverancier_code', 'art_nr_lev', 'artikel']:
             return 'supplierinfo.product_code'
@@ -286,9 +292,10 @@ class DirectImport(models.TransientModel):
         
         # Parse mapping and extract values
         for csv_col, odoo_field in mapping.items():
-            if not odoo_field or odoo_field not in row:
+            if not odoo_field:
                 continue
-                
+            
+            # Get value from CSV row using csv_column as key
             value = row.get(csv_col, '').strip()
             if not value:
                 continue
@@ -551,8 +558,14 @@ class DirectImportMappingLine(models.TransientModel):
                 ]:
                     continue
                 
-                # Skip computed/related velden (readonly)
-                if getattr(field, 'compute', None) and not getattr(field, 'store', False):
+                # Skip ALLEEN computed velden die NIET related zijn
+                # Related velden zijn vaak schrijfbaar (zoals name → product_tmpl_id.name)
+                is_computed = getattr(field, 'compute', None) is not None
+                is_related = getattr(field, 'related', None) is not None
+                is_readonly = getattr(field, 'readonly', False)
+                
+                # Skip als computed EN niet related (of als explicitly readonly)
+                if is_computed and not is_related and is_readonly:
                     continue
                 
                 # Skip relational many2many/one2many
