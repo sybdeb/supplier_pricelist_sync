@@ -6,41 +6,16 @@
 
     <!-- Dashboard (main entry point) -->
     <menuitem id="menu_supplier_pricelist_dashboard"
-              name="📊 Dashboard" 
+              name="Dashboard" 
               parent="menu_supplier_pricelist_root"
               action="action_supplier_pricelist_dashboard"
               sequence="10"/>
 
-    <!-- Direct wizard access (submenu) -->
-    <menuitem id="menu_supplier_pricelist_import_wizard"
-              name="📁 Manual Import"
-              parent="menu_supplier_pricelist_root"
-              action="action_smart_import_js"
-              sequence="20"/>
-
-    <!-- Test menu items -->
-    <menuitem id="menu_test_v1"
-              name="🧪 Test V1 (Native Pattern)"
-              parent="menu_supplier_pricelist_root"
-              action="action_smart_import_test_v1"
-              sequence="91"/>
-              
-    <menuitem id="menu_test_v2"
-              name="🧪 Test V2 (Pure JS)"
-              parent="menu_supplier_pricelist_root" 
-              action="action_smart_import_test_v2"
-              sequence="92"/>
-
     <!-- Mappings management -->
     <menuitem id="menu_supplier_pricelist_mappings"
-              name="🗺️ Column Mappings"
+              name="Column Mappings"
               parent="menu_supplier_pricelist_root"
-              action="action_base_import_mapping_custom"
-              sequence="30"/>
+              action="action_supplier_mapping_template"
+              sequence="20"/>
 
-    <!-- Import History -->
-    <menuitem id="menu_supplier_import_history"
-              name="📊 Import History"
-              parent="menu_supplier_pricelist_root"
-              sequence="40"/>
 </odoo>

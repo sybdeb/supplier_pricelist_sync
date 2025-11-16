@@ -50,14 +50,14 @@ class SupplierPricelistDashboard(models.Model):
             record.mappings_count = len(mappings)
 
     def action_open_manual_import(self):
-        """Open Smart Import wizard"""
+        """Open Direct Import wizard"""
         return {
-            'name': 'Smart Import System',
+            'name': 'Direct Import System',
             'type': 'ir.actions.act_window',
-            'res_model': 'supplier.smart.import',
+            'res_model': 'supplier.direct.import',
             'view_mode': 'form',
             'target': 'new',
-            'context': {'default_dashboard_id': self.id}
+            'context': {}
         }
     
     def action_view_mappings(self):
@@ -79,17 +79,6 @@ class SupplierPricelistDashboard(models.Model):
             'res_model': 'supplier.pricelist.import.history', 
             'view_mode': 'tree,form',
             'domain': [('dashboard_id', '=', self.id)]
-        }
-    
-    def action_native_import(self):
-        """Open native import wizard"""
-        _logger.info("action_native_import called successfully!")
-        return {
-            'name': 'Native Import (Leverancier)',
-            'type': 'ir.actions.act_window',
-            'res_model': 'supplier.native.import.wizard',
-            'view_mode': 'form',
-            'target': 'new',
         }
     
     def action_manage_suppliers(self):

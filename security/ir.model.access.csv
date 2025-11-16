@@ -1,11 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_supplier_pricelist_dashboard,supplier.pricelist.dashboard,model_supplier_pricelist_dashboard,,1,1,1,1
 access_supplier_import_history,supplier.pricelist.import.history,model_supplier_pricelist_import_history,,1,1,1,1
-access_supplier_smart_import,supplier.smart.import,model_supplier_smart_import,,1,1,1,1
-access_smart_import_mapping_line,supplier.smart.import.mapping.line,model_supplier_smart_import_mapping_line,,1,1,1,1
-access_smart_import_session,supplier.smart.import.session,model_supplier_smart_import_session,,1,1,1,1
-access_smart_import_session_mapping_line,supplier.smart.import.session.mapping.line,model_supplier_smart_import_session_mapping_line,,1,1,1,1
+access_supplier_direct_import,supplier.direct.import,model_supplier_direct_import,,1,1,1,1
+access_direct_import_mapping_line,supplier.direct.import.mapping.line,model_supplier_direct_import_mapping_line,,1,1,1,1
 access_supplier_mapping_template,supplier.mapping.template,model_supplier_mapping_template,,1,1,1,1
 access_supplier_mapping_line,supplier.mapping.line,model_supplier_mapping_line,,1,1,1,1
-access_smart_import_stateless,supplier.smart.import.stateless,model_supplier_smart_import_stateless,,1,1,1,1
-access_supplier_native_import_wizard,supplier.native.import.wizard,model_supplier_native_import_wizard,,1,1,1,1

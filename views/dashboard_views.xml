@@ -99,16 +99,12 @@
                                     <h5>Configuration</h5>
                                 </div>
                                 <div class="card-body">
-                                    <button name="action_native_import" 
-                                            string="🔗 Native Import" 
-                                            type="object" 
-                                            class="btn btn-primary btn-block mb-2"/>
                                     <button name="action_view_mappings" 
-                                            string="🗺️ Column Mappings" 
+                                            string="Mapping Templates" 
                                             type="object" 
                                             class="btn btn-success btn-block mb-2"/>
                                     <button name="action_manage_suppliers" 
-                                            string="👥 Manage Suppliers" 
+                                            string="Manage Suppliers" 
                                             type="object" 
                                             class="btn btn-warning btn-block"/>
                                 </div>

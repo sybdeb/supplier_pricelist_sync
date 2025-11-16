@@ -1,3 +1,3 @@
-from . import advanced_supplier_import_wizard
-from . import supplier_native_import_wizard
-from . import import_column_mapping
+# -*- coding: utf-8 -*-
+# Wizard folder - no wizards needed, all logic in models/direct_import.py
+
