@@ -25,27 +25,27 @@ class SupplierPricelistDashboard(models.Model):
     last_import_date = fields.Datetime(string='Last Import', compute='_compute_statistics')
     
     # Quick actions - computed field voor recent imports
-    manual_import_ids = fields.One2many('supplier.pricelist.import.history', compute='_compute_recent_imports', string='Recent Imports')
+    manual_import_ids = fields.One2many('supplier.import.history', compute='_compute_recent_imports', string='Recent Imports')
     
     def _compute_recent_imports(self):
         """Compute recent imports for dashboard"""
         for record in self:
-            recent = self.env['supplier.pricelist.import.history'].search([], limit=10, order='create_date desc')
+            recent = self.env['supplier.import.history'].search([], limit=10, order='import_date desc')
             record.manual_import_ids = recent
     
     @api.depends('manual_import_ids')
     def _compute_statistics(self):
         for record in self:
-            # Import statistics
-            history = self.env['supplier.pricelist.import.history'].search([])
+            # Import statistics - gebruik NIEUWE import history
+            history = self.env['supplier.import.history'].search([])
             record.total_imports = len(history)
-            record.last_import_date = history[0].create_date if history else False
+            record.last_import_date = history[0].import_date if history else False
             
-            # Supplier statistics - ONZE EIGEN TEMPLATES  
+            # Supplier statistics - suppliers met opgeslagen mappings
             suppliers_with_mappings = self.env['supplier.mapping.template'].search([]).mapped('supplier_id')
             record.active_suppliers = len(set(suppliers_with_mappings.ids))
             
-            # Mappings count - ONZE EIGEN TEMPLATES
+            # Mappings count
             mappings = self.env['supplier.mapping.template'].search([])
             record.mappings_count = len(mappings)
 
@@ -76,9 +76,20 @@ class SupplierPricelistDashboard(models.Model):
         return {
             'name': 'Import History',
             'type': 'ir.actions.act_window',
-            'res_model': 'supplier.pricelist.import.history', 
+            'res_model': 'supplier.import.history', 
             'view_mode': 'tree,form',
-            'domain': [('dashboard_id', '=', self.id)]
+            'domain': []
+        }
+    
+    def action_view_import_errors(self):
+        """View products that were NOT found during imports"""
+        return {
+            'name': 'Import Errors - Products Not Found',
+            'type': 'ir.actions.act_window',
+            'res_model': 'supplier.import.error',
+            'view_mode': 'tree,form',
+            'domain': [('error_type', '=', 'product_not_found'), ('resolved', '=', False)],
+            'context': {'default_error_type': 'product_not_found'}
         }
     
     def action_manage_suppliers(self):

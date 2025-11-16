@@ -208,6 +208,7 @@ class DirectImport(models.TransientModel):
         """
         Voer de import uit met de geconfigureerde mapping
         Direct processing: CSV → Product lookup → Supplierinfo create/update
+        + Import History Logging
         """
         self.ensure_one()
         
@@ -235,6 +236,16 @@ class DirectImport(models.TransientModel):
         if not has_price:
             raise UserError("Mapping moet 'Price' bevatten (leveranciersprijs)")
         
+        # CREATE IMPORT HISTORY RECORD
+        import time
+        start_time = time.time()
+        
+        history = self.env['supplier.import.history'].create({
+            'supplier_id': self.supplier_id.id,
+            'filename': self.csv_filename,
+            'state': 'running',
+        })
+        
         try:
             # Parse CSV
             csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
@@ -246,21 +257,37 @@ class DirectImport(models.TransientModel):
                 'created': 0,
                 'updated': 0,
                 'skipped': 0,
-                'errors': []
+                'errors': [],
+                'history_id': history.id  # Pass history ID for error logging
             }
             
             for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header = 1)
                 stats['total'] += 1
                 
                 try:
-                    self._process_row(row, mapping, stats)
+                    self._process_row(row, mapping, stats, row_num)
                 except Exception as e:
-                    stats['errors'].append(f"Rij {row_num}: {str(e)}")
+                    error_msg = str(e)
+                    stats['errors'].append(f"Rij {row_num}: {error_msg}")
                     stats['skipped'] += 1
                     _logger.warning(f"Import error on row {row_num}: {e}")
             
-            # Create summary
+            # Calculate duration
+            duration = time.time() - start_time
+            
+            # Update history record
             summary = self._create_import_summary(stats)
+            history.write({
+                'total_rows': stats['total'],
+                'created_count': stats['created'],
+                'updated_count': stats['updated'],
+                'skipped_count': stats['skipped'],
+                'error_count': len(stats['errors']),
+                'duration': duration,
+                'summary': summary,
+                'state': 'completed_with_errors' if stats['errors'] else 'completed',
+            })
+            
             self.import_summary = summary
             
             return {
@@ -275,12 +302,19 @@ class DirectImport(models.TransientModel):
             }
             
         except Exception as e:
+            # Mark history as failed
+            if history:
+                history.write({
+                    'state': 'failed',
+                    'summary': f"Import failed: {str(e)}",
+                })
             raise UserError(f"Import failed: {str(e)}")
     
-    def _process_row(self, row, mapping, stats):
+    def _process_row(self, row, mapping, stats, row_num=0):
         """
         Process single CSV row met DYNAMISCHE field mapping
         Mapping format: {'csv_column': 'model.fieldname', ...}
+        + Error logging voor niet gevonden producten
         """
         # Separate mappings by model
         product_fields = {}  # Fields to update on product.product
@@ -329,6 +363,19 @@ class DirectImport(models.TransientModel):
             product = self.env['product.product'].search([('default_code', '=', product_code)], limit=1)
         
         if not product:
+            # LOG ERROR: Product niet gevonden
+            if stats.get('history_id'):
+                import json
+                self.env['supplier.import.error'].create({
+                    'history_id': stats['history_id'],
+                    'row_number': row_num,
+                    'error_type': 'product_not_found',
+                    'barcode': barcode or '',
+                    'product_code': product_code or '',
+                    'product_name': product_fields.get('name', ''),
+                    'csv_data': json.dumps(dict(row)),
+                    'error_message': f"Product niet gevonden met EAN: {barcode}, SKU: {product_code}",
+                })
             raise ValidationError(f"Product niet gevonden (EAN: {barcode}, SKU: {product_code})")
         
         # STEP 2: Update product fields (if any)
