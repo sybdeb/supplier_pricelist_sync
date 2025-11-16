@@ -21,14 +21,24 @@ Built for Odoo 18 Community Edition
         "security/ir.model.access.csv",
         "views/dashboard_views.xml",
         "views/smart_import_views.xml",
-        # "views/smart_import_session_views.xml",  # DISABLED: View conflicts - session model available but not exposed
+        # "views/smart_import_session_views.xml",  # DISABLED - experimental feature causing view conflicts
         "views/supplier_mapping_template_views.xml",
         "views/product_supplierinfo_views.xml",
         "views/product_template_views.xml",
         "views/wizard_action.xml",
+        "views/test_actions.xml",
+        "views/supplier_native_import_views.xml",  # NEW: Native import integration
         "views/menus.xml",
     ],
-    # Assets removed - using server-side approach instead of JavaScript
+    "assets": {
+        "web.assets_backend": [
+            "supplier_pricelist_sync/static/src/js/smart_import_state_manager.js",
+            "supplier_pricelist_sync/static/src/js/smart_import_fixed_v1.js", 
+            "supplier_pricelist_sync/static/src/js/smart_import_fixed_v2.js",
+            "supplier_pricelist_sync/static/src/xml/smart_import_templates.xml",
+            "supplier_pricelist_sync/static/src/xml/smart_import_fixed_templates.xml",
+        ],
+    },
     "installable": True,
     "application": True,
     "auto_install": False,

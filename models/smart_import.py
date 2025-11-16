@@ -94,16 +94,35 @@ class SmartImport(models.TransientModel):
             
             csv_reader = csv.reader(io.StringIO(file_content), delimiter=best_delimiter)
             
-            # Get headers
-            headers = next(csv_reader) if self.has_headers else []
-            _logger.info(f"Detected headers: {headers}")
+            # Get headers - ALWAYS try to read first row as headers for better UX
+            try:
+                first_row = next(csv_reader)
+                if self.has_headers:
+                    headers = first_row
+                    _logger.info(f"Using first row as headers: {headers}")
+                else:
+                    # Put first row back for data processing and generate column names
+                    preview_rows = [first_row]
+                    headers = [f'Column_{i+1}' for i in range(len(first_row))]
+                    _logger.info(f"Generated column names: {headers}")
+            except StopIteration:
+                headers = []
+                _logger.warning("Empty CSV file - no headers detected")
             
             # Get preview data (eerste 5 rijen)
-            preview_rows = []
-            for i, row in enumerate(csv_reader):
-                if i >= 5:
-                    break
-                preview_rows.append(row)
+            if not self.has_headers and 'preview_rows' in locals():
+                # First row was already captured above, continue with remaining rows
+                for i, row in enumerate(csv_reader):
+                    if len(preview_rows) >= 5:
+                        break
+                    preview_rows.append(row)
+            else:
+                # Normal case - read next rows for preview
+                preview_rows = []
+                for i, row in enumerate(csv_reader):
+                    if i >= 5:
+                        break
+                    preview_rows.append(row)
             
             _logger.info(f"Preview rows: {len(preview_rows)} found")
             
@@ -701,3 +720,27 @@ class SmartImport(models.TransientModel):
     # RESTORE METHOD NIET MEER NODIG - mappings blijven automatisch behouden!
     
     # CREATE OVERRIDE NIET MEER NODIG - we refreshen de form niet meer!
+    
+    def action_use_native_import(self):
+        """
+        TIJDELIJK: Open Odoo's native import wizard met supplier context
+        Triggered vanuit Smart Import wizard als alternatief voor manual mapping
+        """
+        if not self.supplier_id:
+            raise UserError("Selecteer eerst een leverancier voordat je naar Native Import gaat")
+        
+        _logger.info(f"Opening Native Import voor supplier: {self.supplier_id.name} (ID: {self.supplier_id.id})")
+        
+        # GEEN import_id - laat ImportAction zelf het record aanmaken
+        # Supplier context gaat mee via params.context
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'import',
+            'params': {
+                'model': 'product.supplierinfo',
+                'context': {
+                    'default_partner_id': self.supplier_id.id,  # Auto-fill supplier in imports
+                    'supplier_id': self.supplier_id.id,
+                },
+            },
+        }

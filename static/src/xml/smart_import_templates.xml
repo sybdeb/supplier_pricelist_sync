@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+    
+    <t t-name="supplier_pricelist_sync.SmartImportStateManager">
+        <div class="o_smart_import_container">
+            
+            <!-- Header -->
+            <div class="o_smart_import_header">
+                <h2>🧠 Smart Import System</h2>
+                <p class="text-muted">Upload CSV, map fields, save templates - with persistent state!</p>
+            </div>
+            
+            <!-- Supplier Selection -->
+            <div class="row mb-3" t-if="!state.supplier_id">
+                <div class="col-md-6">
+                    <label class="form-label">Select Supplier</label>
+                    <!-- Supplier dropdown would go here -->
+                    <select class="form-control" t-on-change="onSupplierChange">
+                        <option value="">-- Select Supplier --</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+            </div>
+            
+            <!-- File Upload -->
+            <div class="row mb-4" t-if="state.supplier_id and !state.csvUploaded">
+                <div class="col-md-8">
+                    <div class="border-2 border-dashed border-primary rounded p-4 text-center">
+                        <i class="fa fa-upload fa-2x text-primary mb-2"></i>
+                        <p class="mb-2">Upload your CSV file</p>
+                        <input type="file" 
+                               accept=".csv" 
+                               t-on-change="onFileUpload" 
+                               class="form-control"/>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CSV Preview -->
+            <div class="row mb-4" t-if="state.showPreview">
+                <div class="col-12">
+                    <h4>📄 CSV Preview</h4>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th t-foreach="state.csvHeaders" t-as="header" t-key="header_index">
+                                        <t t-esc="header"/>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="state.csvPreview" t-as="row" t-key="row_index">
+                                    <td t-foreach="row" t-as="cell" t-key="cell_index">
+                                        <t t-esc="cell"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Field Mapping -->
+            <div class="row mb-4" t-if="state.mappingLines.length > 0">
+                <div class="col-12">
+                    <h4>🎯 Field Mapping</h4>
+                    <div class="alert alert-info">
+                        <strong>Map CSV columns to Odoo fields:</strong> Changes are saved instantly in your browser.
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>CSV Column</th>
+                                    <th>Sample Data</th>
+                                    <th>Odoo Field</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="state.mappingLines" t-as="line" t-key="line_index">
+                                    <td><strong t-esc="line.csv_column"/></td>
+                                    <td class="text-muted">
+                                        <small t-esc="line.sample_data"/>
+                                    </td>
+                                    <td>
+                                        <select class="form-control" 
+                                                t-att-value="line.odoo_field"
+                                                t-on-change="(ev) => this.onMappingChange(line_index, ev.target.value)">
+                                            <option value="">-- Select Field --</option>
+                                            <option value="price">Price</option>
+                                            <option value="min_qty">Minimum Quantity</option>
+                                            <option value="delay">Delivery Lead Time</option>
+                                            <option value="product_name">Product Name</option>
+                                            <option value="product_code">Product Code</option>
+                                            <option value="product_barcode">Product EAN/Barcode</option>
+                                            <!-- More options populated dynamically -->
+                                        </select>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="row" t-if="state.mappingLines.length > 0">
+                <div class="col-12">
+                    <div class="btn-group" role="group">
+                        <button type="button" 
+                                class="btn btn-secondary"
+                                t-att-disabled="state.isProcessing"
+                                t-on-click="saveAsTemplate">
+                            <i class="fa fa-save"/> Save as Template
+                        </button>
+                        
+                        <button type="button" 
+                                class="btn btn-primary"
+                                t-att-disabled="state.isProcessing"
+                                t-on-click="executeImport">
+                            <i class="fa fa-download"/> Import Data
+                        </button>
+                    </div>
+                    
+                    <div t-if="state.isProcessing" class="ms-3 d-inline-block">
+                        <i class="fa fa-spinner fa-spin"/> Processing...
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </t>
+    
+</templates>

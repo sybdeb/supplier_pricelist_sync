@@ -1,9 +1,7 @@
 <odoo>
-    <record id="action_supplier_pricelist_import_wizard" model="ir.actions.act_window">
+    <record id="action_smart_import_js" model="ir.actions.client">
         <field name="name">🧠 Smart Import System</field>
-        <field name="res_model">supplier.smart.import</field>
-        <field name="view_mode">form</field>
-        <field name="view_id" ref="view_supplier_smart_import_form"/>
-        <field name="target">new</field>
+        <field name="tag">smart_import_js</field>
+        <field name="params">{}</field>
     </record>
 </odoo>

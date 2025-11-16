@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+    
+    <!-- Fixed Version 1 Template -->
+    <t t-name="supplier_pricelist_sync.SmartImportFixedV1">
+        <div class="o_smart_import_v1">
+            <h2>🧠 Smart Import (Fixed V1)</h2>
+            <p class="text-muted">Based on Odoo's native ImportAction architecture</p>
+            
+            <!-- Supplier Selection -->
+            <div class="mb-3" t-if="!state.supplier_id">
+                <label class="form-label">Select Supplier</label>
+                <select class="form-control" t-on-change="onSupplierChange">
+                    <option value="">-- Select Supplier --</option>
+                    <option t-foreach="state.availableSuppliers" t-as="supplier" 
+                            t-key="supplier.id" t-att-value="supplier.id">
+                        <t t-esc="supplier.name"/>
+                    </option>
+                </select>
+            </div>
+
+            <!-- File Upload (Native Odoo Component) -->
+            <div class="mb-4" t-if="state.supplier_id and !state.showPreview">
+                <FileInput uploadRoute="handleFileUpload" 
+                          acceptedFileExtensions="'.csv'" 
+                          multiUpload="false"/>
+            </div>
+
+            <!-- Preview & Mapping -->
+            <div t-if="state.showPreview" class="mb-4">
+                <h4>📄 CSV Preview</h4>
+                <table class="table table-bordered table-sm">
+                    <thead>
+                        <tr>
+                            <th t-foreach="state.csvHeaders" t-as="header" t-key="header_index">
+                                <t t-esc="header"/>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="state.csvPreview.slice(0, 3)" t-as="row" t-key="row_index">
+                            <td t-foreach="row" t-as="cell" t-key="cell_index">
+                                <t t-esc="cell"/>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>🗺️ Column Mapping</h4>
+                <div class="row">
+                    <div t-foreach="state.mappingLines" t-as="mapping" t-key="mapping_index" class="col-md-6 mb-2">
+                        <div class="card">
+                            <div class="card-body">
+                                <label><strong t-esc="mapping.csv_column"/></label>
+                                <select class="form-control" 
+                                        t-att-value="mapping.odoo_field"
+                                        t-on-change="(ev) => this.onMappingChange(mapping_index, ev.target.value)">
+                                    <option value="">-- Skip Column --</option>
+                                    <option value="import_barcode">Barcode/EAN</option>
+                                    <option value="import_sku">SKU/Product Code</option>
+                                    <option value="price">Price</option>
+                                    <option value="import_qty_available">Stock Quantity</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="mt-3">
+                    <button class="btn btn-primary me-2" 
+                            t-att-disabled="state.isProcessing"
+                            t-on-click="executeImport">
+                        <i class="fa fa-upload"></i> Execute Import
+                    </button>
+                    
+                    <button class="btn btn-secondary" 
+                            t-att-disabled="state.isProcessing"
+                            t-on-click="saveAsTemplate">
+                        <i class="fa fa-save"></i> Save as Template
+                    </button>
+                </div>
+            </div>
+
+            <!-- Processing Indicator -->
+            <div t-if="state.isProcessing" class="text-center">
+                <i class="fa fa-spinner fa-spin"></i> Processing...
+            </div>
+        </div>
+    </t>
+
+    <!-- Fixed Version 2 Template -->
+    <t t-name="supplier_pricelist_sync.SmartImportFixedV2">
+        <div class="o_smart_import_v2">
+            <h2>🧠 Smart Import (Fixed V2)</h2>
+            <p class="text-muted">Pure JavaScript state management</p>
+            
+            <!-- Step 1: Supplier Selection -->
+            <div t-if="state.currentStep === 'select_supplier'" class="step-container">
+                <h4>Step 1: Select Supplier</h4>
+                <select class="form-control" t-on-change="onSupplierSelect">
+                    <option value="">-- Choose Supplier --</option>
+                    <option t-foreach="state.availableSuppliers" t-as="supplier" 
+                            t-key="supplier.id" t-att-value="supplier.id">
+                        <t t-esc="supplier.name"/>
+                    </option>
+                </select>
+            </div>
+
+            <!-- Step 2: File Upload -->
+            <div t-if="state.currentStep === 'upload_file'" class="step-container">
+                <h4>Step 2: Upload CSV File</h4>
+                <input type="file" accept=".csv" class="form-control" t-on-change="onFileUpload"/>
+            </div>
+
+            <!-- Step 3: Column Mapping -->
+            <div t-if="state.currentStep === 'map_columns'" class="step-container">
+                <h4>Step 3: Map Columns</h4>
+                
+                <!-- CSV Preview -->
+                <table class="table table-sm table-bordered mb-3">
+                    <thead>
+                        <tr>
+                            <th t-foreach="state.csvHeaders" t-as="header" t-key="header_index">
+                                <t t-esc="header"/>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="state.csvRows.slice(0, 2)" t-as="row" t-key="row_index">
+                            <td t-foreach="row" t-as="cell" t-key="cell_index">
+                                <t t-esc="cell"/>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Mapping Controls -->
+                <div class="row">
+                    <div t-foreach="state.csvHeaders" t-as="header" t-key="header_index" class="col-md-4 mb-2">
+                        <label><strong t-esc="header"/></label>
+                        <select class="form-control" 
+                                t-att-value="state.mappings[header_index]"
+                                t-on-change="(ev) => this.onMappingChange(header_index, ev.target.value)">
+                            <option value="">-- Skip --</option>
+                            <option value="import_barcode">Barcode/EAN</option>
+                            <option value="import_sku">SKU/Code</option>
+                            <option value="price">Price</option>
+                            <option value="import_qty_available">Stock</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Ready to Import -->
+            <div t-if="state.currentStep === 'ready'" class="step-container">
+                <h4>✅ Ready to Import</h4>
+                <div class="alert alert-success">
+                    Mapping completed! You can now execute the import or save this mapping as a template.
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success" 
+                            t-att-disabled="state.isProcessing"
+                            t-on-click="executeImport">
+                        <i class="fa fa-play"></i> Execute Import
+                    </button>
+                    
+                    <button class="btn btn-info" 
+                            t-att-disabled="state.isProcessing"
+                            t-on-click="saveTemplate">
+                        <i class="fa fa-bookmark"></i> Save Template
+                    </button>
+
+                    <button class="btn btn-secondary" t-on-click="resetWizard">
+                        <i class="fa fa-refresh"></i> Start Over
+                    </button>
+                </div>
+            </div>
+
+            <!-- Processing -->
+            <div t-if="state.isProcessing" class="text-center mt-3">
+                <div class="spinner-border" role="status"></div>
+                <p>Processing...</p>
+            </div>
+        </div>
+    </t>
+
+</templates>

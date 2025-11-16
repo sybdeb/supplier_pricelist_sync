@@ -26,6 +26,18 @@
                         </group>
                     </group>
                     
+                    <!-- TIJDELIJK: Test Native Import -->
+                    <div class="alert alert-warning mt-3" invisible="file">
+                        <strong>🔗 Of gebruik Odoo's Native Import:</strong>
+                        <button name="action_use_native_import" 
+                                string="Open Native Import" 
+                                type="object" 
+                                class="btn btn-primary ml-2"
+                                invisible="not supplier_id"
+                                help="Open Odoo's native import wizard met supplier context"/>
+                        <p class="mb-0 mt-2"><small>Native import heeft meer functies (batch import, advanced mapping, etc.)</small></p>
+                    </div>
+                    
                     <!-- CSV Preview Table -->
                     <div invisible="not preview_data">
                         <h3>📄 CSV Preview (First 5 rows, max 4 columns shown)</h3>

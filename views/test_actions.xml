@@ -1,0 +1,16 @@
+<odoo>
+    <!-- Test Actions for Fixed Versions -->
+    
+    <record id="action_smart_import_test_v1" model="ir.actions.client">
+        <field name="name">🧪 Smart Import Test V1</field>
+        <field name="tag">smart_import_fixed_v1</field>
+        <field name="params">{}</field>
+    </record>
+    
+    <record id="action_smart_import_test_v2" model="ir.actions.client">
+        <field name="name">🧪 Smart Import Test V2</field>
+        <field name="tag">smart_import_fixed_v2</field>
+        <field name="params">{}</field>
+    </record>
+    
+</odoo>

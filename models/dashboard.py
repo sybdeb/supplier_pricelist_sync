@@ -81,6 +81,17 @@ class SupplierPricelistDashboard(models.Model):
             'domain': [('dashboard_id', '=', self.id)]
         }
     
+    def action_native_import(self):
+        """Open native import wizard"""
+        _logger.info("action_native_import called successfully!")
+        return {
+            'name': 'Native Import (Leverancier)',
+            'type': 'ir.actions.act_window',
+            'res_model': 'supplier.native.import.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+        }
+    
     def action_manage_suppliers(self):
         """Manage suppliers with mappings"""
         # Use our custom mapping templates instead of base_import

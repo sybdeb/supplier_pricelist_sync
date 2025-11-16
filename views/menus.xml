@@ -15,8 +15,21 @@
     <menuitem id="menu_supplier_pricelist_import_wizard"
               name="📁 Manual Import"
               parent="menu_supplier_pricelist_root"
-              action="action_supplier_pricelist_import_wizard"
+              action="action_smart_import_js"
               sequence="20"/>
+
+    <!-- Test menu items -->
+    <menuitem id="menu_test_v1"
+              name="🧪 Test V1 (Native Pattern)"
+              parent="menu_supplier_pricelist_root"
+              action="action_smart_import_test_v1"
+              sequence="91"/>
+              
+    <menuitem id="menu_test_v2"
+              name="🧪 Test V2 (Pure JS)"
+              parent="menu_supplier_pricelist_root" 
+              action="action_smart_import_test_v2"
+              sequence="92"/>
 
     <!-- Mappings management -->
     <menuitem id="menu_supplier_pricelist_mappings"

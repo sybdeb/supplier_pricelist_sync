@@ -41,7 +41,7 @@
                     </group>
                     
                     <!-- Mapping Section -->
-                    <notebook states="loaded,mapped">
+                    <notebook>
                         <page string="🎯 Column Mapping" name="mapping">
                             <field name="mapping_lines" nolabel="1">
                                 <tree editable="bottom">

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="supplier_native_import_wizard_form" model="ir.ui.view">
+        <field name="name">Supplier Native Import Wizard</field>
+        <field name="model">supplier.native.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Import Leverancier Prijslijst (Native)">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="supplier_id" placeholder="Selecteer leverancier..." 
+                                   options="{'no_create': True, 'no_edit': True}"/>
+                        </h1>
+                    </div>
+                    
+                    <notebook>
+                        <page string="CSV Upload" name="csv_upload">
+                            <group>
+                                <group string="Bestand Upload">
+                                    <field name="csv_file" filename="csv_filename" 
+                                           options="{'accepted_file_extensions': '.csv,.xlsx,.xls'}"/>
+                                    <field name="csv_filename" invisible="1"/>
+                                </group>
+                                
+                                <group string="Import Info">
+                                    <div class="alert alert-info" role="alert">
+                                        <strong>Native Import Integration</strong><br/>
+                                        Deze wizard gebruikt Odoo's native import systeem met:
+                                        <ul>
+                                            <li>✅ Automatische kolom detectie</li>
+                                            <li>✅ Intelligent product matching via EAN/SKU</li>
+                                            <li>✅ Leverancier-specifieke templates</li>
+                                            <li>✅ Bulk import prestaties</li>
+                                            <li>✅ Native error handling</li>
+                                        </ul>
+                                    </div>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <page string="Mapping Template" name="mapping_info">
+                            <group>
+                                <div class="alert alert-success" role="alert">
+                                    <h4>Automatische Kolom Mapping</h4>
+                                    <p>Het systeem herkent automatisch veel voorkomende kolommen:</p>
+                                    
+                                    <strong>Product Matching:</strong>
+                                    <ul>
+                                        <li><code>ean_code, barcode</code> → Product via EAN</li>
+                                        <li><code>fabrikantscode, sku, product_code</code> → Product via SKU</li>
+                                    </ul>
+                                    
+                                    <strong>Prijsinformatie:</strong>
+                                    <ul>
+                                        <li><code>prijs, price, cost</code> → Inkoopprijs</li>
+                                        <li><code>voorraad, qty, quantity</code> → Minimale hoeveelheid</li>
+                                        <li><code>levertijd, delivery_days, leadtime</code> → Levertijd</li>
+                                    </ul>
+                                    
+                                    <strong>Leverancier Context:</strong>
+                                    <ul>
+                                        <li><code>partner_id</code> → Automatisch ingevuld met gekozen leverancier</li>
+                                    </ul>
+                                </div>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                
+                <footer>
+                    <button name="action_start_native_import" string="Start Native Import" 
+                            type="object" class="btn-primary" 
+                            invisible="csv_file == False"/>
+                    <button string="Annuleren" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action voor Native Import Wizard -->
+    <record id="action_supplier_native_import_wizard" model="ir.actions.act_window">
+        <field name="name">Import via Native System</field>
+        <field name="res_model">supplier.native.import.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="supplier_native_import_wizard_form"/>
+    </record>
+
+    <!-- Menu item toevoegen aan bestaand menu -->
+    <menuitem id="menu_supplier_native_import"
+              name="🔗 Native Import"
+              parent="menu_supplier_pricelist_root"
+              action="action_supplier_native_import_wizard"
+              sequence="30"/>
+
+</odoo>
