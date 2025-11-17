@@ -18,7 +18,7 @@ class ImportHistory(models.Model):
     name = fields.Char('Import Name', compute='_compute_name', store=True)
     import_date = fields.Datetime('Import Date', default=fields.Datetime.now, required=True)
     supplier_id = fields.Many2one('res.partner', string='Leverancier', required=True)
-    user_id = fields.Many2one('res.user', string='Imported By', default=lambda self: self.env.user)
+    user_id = fields.Many2one('res.users', string='Imported By', default=lambda self: self.env.user)
     
     # File info
     filename = fields.Char('Bestandsnaam')
@@ -96,5 +96,14 @@ class ImportError(models.Model):
     # Status
     resolved = fields.Boolean('Resolved', default=False)
     resolved_date = fields.Datetime('Resolved Date')
-    resolved_by = fields.Many2one('res.user', string='Resolved By')
+    resolved_by = fields.Many2one('res.users', string='Resolved By')
     notes = fields.Text('Resolution Notes')
+    
+    def action_mark_resolved(self):
+        """Mark error as resolved"""
+        self.write({
+            'resolved': True,
+            'resolved_date': fields.Datetime.now(),
+            'resolved_by': self.env.user.id,
+        })
+        return True

@@ -120,17 +120,16 @@
                     <div class="row mt-4">
                         <div class="col-12">
                             <h3>Recent Imports</h3>
-                            <field name="manual_import_ids" readonly="1">
+                            <field name="recent_import_ids" readonly="1">
                                 <list limit="10" create="false" edit="false">
-                                    <field name="create_date" string="Date"/>
+                                    <field name="import_date" string="Date"/>
                                     <field name="supplier_id" string="Supplier"/>
                                     <field name="filename" string="File"/>
-                                    <field name="records_processed" string="Records"/>
-                                    <field name="status" widget="badge" 
-                                           decoration-success="status == 'success'"
-                                           decoration-danger="status == 'error'"
-                                           decoration-warning="status == 'partial'"/>
-                                    <field name="import_method" string="Method"/>
+                                    <field name="total_rows" string="Records"/>
+                                    <field name="state" widget="badge" 
+                                           decoration-success="state == 'completed'"
+                                           decoration-danger="state == 'failed'"
+                                           decoration-warning="state == 'completed_with_errors'"/>
                                     <field name="user_id" string="User"/>
                                 </list>
                             </field>
@@ -159,77 +158,5 @@
         <field name="target">current</field>
         <field name="context">{'create': False}</field>
     </record>
-    
-    <!-- Import History Views -->
-    <record id="view_supplier_import_history_list" model="ir.ui.view">
-        <field name="name">supplier.pricelist.import.history.list</field>
-        <field name="model">supplier.pricelist.import.history</field>
-        <field name="arch" type="xml">
-            <list create="false" edit="false">
-                <field name="create_date" string="Import Date"/>
-                <field name="supplier_id"/>
-                <field name="filename"/>
-                <field name="records_processed"/>
-                <field name="records_created"/>
-                <field name="records_updated"/>
-                <field name="status" widget="badge" 
-                       decoration-success="status == 'success'"
-                       decoration-danger="status == 'error'"
-                       decoration-warning="status == 'partial'"/>
-                <field name="import_method"/>
-                <field name="user_id"/>
-                <field name="duration" string="Duration (s)"/>
-            </list>
-        </field>
-    </record>
-    
-    <record id="view_supplier_import_history_form" model="ir.ui.view">
-        <field name="name">supplier.pricelist.import.history.form</field>
-        <field name="model">supplier.pricelist.import.history</field>
-        <field name="arch" type="xml">
-            <form create="false" edit="false">
-                <header>
-                    <field name="status" widget="statusbar"/>
-                </header>
-                <sheet>
-                    <group>
-                        <group>
-                            <field name="supplier_id"/>
-                            <field name="filename"/>
-                            <field name="import_method"/>
-                            <field name="user_id"/>
-                        </group>
-                        <group>
-                            <field name="records_processed"/>
-                            <field name="records_created"/>
-                            <field name="records_updated"/>
-                            <field name="duration"/>
-                        </group>
-                    </group>
-                    <notebook>
-                        <page string="Details" invisible="error_message == False">
-                            <field name="error_message"/>
-                        </page>
-                    </notebook>
-                </sheet>
-            </form>
-        </field>
-    </record>
 
-    <!-- Custom Action for Base Import Mapping -->
-    <record id="action_base_import_mapping_custom" model="ir.actions.act_window">
-        <field name="name">Import Column Mappings</field>
-        <field name="res_model">base_import.mapping</field>
-        <field name="view_mode">list,form</field>
-        <field name="context">{}</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                No column mappings found!
-            </p>
-            <p>
-                Column mappings are automatically created when you import CSV files through the wizard.
-                Each supplier can have unique column mappings that are remembered for future imports.
-            </p>
-        </field>
-    </record>
 </odoo>

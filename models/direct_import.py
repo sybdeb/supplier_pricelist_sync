@@ -290,15 +290,9 @@ class DirectImport(models.TransientModel):
             
             self.import_summary = summary
             
+            # Close wizard and show notification
             return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Import Voltooid',
-                    'message': f"Created: {stats['created']}, Updated: {stats['updated']}, Skipped: {stats['skipped']}",
-                    'type': 'success' if not stats['errors'] else 'warning',
-                    'sticky': True,
-                }
+                'type': 'ir.actions.act_window_close',
             }
             
         except Exception as e:

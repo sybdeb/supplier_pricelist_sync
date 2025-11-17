@@ -8,10 +8,10 @@
             <form string="🧠 Smart Import - No Data Loss!">
                 <header>
                     <button name="action_load_csv" string="📂 Parse CSV" type="object" 
-                            class="btn-primary" states="draft,loaded"
+                            class="btn-primary" invisible="state not in ('draft','loaded')"
                             help="Parse uploaded CSV file"/>
                     <button name="action_save_as_template" string="💾 Save as Template" type="object" 
-                            class="btn-secondary" states="loaded,mapped"
+                            class="btn-secondary" invisible="state not in ('loaded','mapped')"
                             help="Save current mapping as reusable template"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,loaded,mapped,imported"/>
                 </header>
@@ -44,12 +44,12 @@
                     <notebook>
                         <page string="🎯 Column Mapping" name="mapping">
                             <field name="mapping_lines" nolabel="1">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="csv_index" readonly="1"/>
                                     <field name="csv_column" readonly="1"/>
                                     <field name="sample_data" readonly="1"/>
                                     <field name="odoo_field" required="0"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         
@@ -71,20 +71,20 @@
         <field name="name">Smart Import Session Tree</field>
         <field name="model">supplier.smart.import.session</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="supplier_id"/>
                 <field name="csv_filename"/>
                 <field name="state"/>
                 <field name="create_date"/>
-            </tree>
+            </list>
         </field>
     </record>
-    
+
     <record id="action_smart_import_session" model="ir.actions.act_window">
         <field name="name">🧠 Smart Import (No Data Loss)</field>
         <field name="res_model">supplier.smart.import.session</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Create a new Smart Import Session

@@ -5,7 +5,7 @@
         <field name="name">supplier.import.history.tree</field>
         <field name="model">supplier.import.history</field>
         <field name="arch" type="xml">
-            <tree string="Import History">
+            <list string="Import History">
                 <field name="import_date"/>
                 <field name="supplier_id"/>
                 <field name="filename"/>
@@ -16,7 +16,7 @@
                 <field name="error_count"/>
                 <field name="state"/>
                 <field name="duration"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -56,16 +56,16 @@
                         <page string="Summary">
                             <field name="summary" widget="text"/>
                         </page>
-                        <page string="Errors" attrs="{'invisible': [('error_count', '=', 0)]}">
+                        <page string="Errors" invisible="error_count == 0">
                             <field name="error_line_ids">
-                                <tree>
+                                <list>
                                     <field name="row_number"/>
                                     <field name="error_type"/>
                                     <field name="barcode"/>
                                     <field name="product_code"/>
                                     <field name="product_name"/>
                                     <field name="resolved"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>
@@ -79,7 +79,7 @@
         <field name="name">supplier.import.error.tree</field>
         <field name="model">supplier.import.error</field>
         <field name="arch" type="xml">
-            <tree string="Import Errors - Products Not Found">
+            <list string="Import Errors - Products Not Found">
                 <field name="history_id"/>
                 <field name="row_number"/>
                 <field name="barcode"/>
@@ -87,7 +87,7 @@
                 <field name="product_name"/>
                 <field name="error_message"/>
                 <field name="resolved"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -99,7 +99,7 @@
             <form string="Import Error Details">
                 <header>
                     <button name="action_mark_resolved" string="Mark as Resolved" type="object" 
-                            attrs="{'invisible': [('resolved', '=', True)]}"/>
+                            invisible="resolved == True"/>
                     <field name="resolved" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -121,7 +121,7 @@
                     <group string="CSV Data (voor product aanmaak)">
                         <field name="csv_data" widget="text"/>
                     </group>
-                    <group string="Resolution" attrs="{'invisible': [('resolved', '=', False)]}">
+                    <group string="Resolution" invisible="resolved == False">
                         <field name="resolved_date"/>
                         <field name="resolved_by"/>
                         <field name="notes"/>
@@ -135,13 +135,13 @@
     <record id="action_import_history" model="ir.actions.act_window">
         <field name="name">Import History</field>
         <field name="res_model">supplier.import.history</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_import_errors" model="ir.actions.act_window">
         <field name="name">Import Errors - Products Not Found</field>
         <field name="res_model">supplier.import.error</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="domain">[('error_type', '=', 'product_not_found')]</field>
         <field name="context">{'default_error_type': 'product_not_found'}</field>
     </record>

@@ -24,16 +24,20 @@ class SupplierPricelistDashboard(models.Model):
     mappings_count = fields.Integer(string='Saved Mappings', compute='_compute_statistics')
     last_import_date = fields.Datetime(string='Last Import', compute='_compute_statistics')
     
-    # Quick actions - computed field voor recent imports
-    manual_import_ids = fields.One2many('supplier.import.history', compute='_compute_recent_imports', string='Recent Imports')
+    # Recent imports list (computed Many2many to avoid inverse_name requirement)
+    recent_import_ids = fields.Many2many(
+        'supplier.import.history', 
+        compute='_compute_recent_imports', 
+        string='Recent Imports'
+    )
     
     def _compute_recent_imports(self):
         """Compute recent imports for dashboard"""
         for record in self:
             recent = self.env['supplier.import.history'].search([], limit=10, order='import_date desc')
-            record.manual_import_ids = recent
+            record.recent_import_ids = recent
     
-    @api.depends('manual_import_ids')
+    @api.depends('recent_import_ids')
     def _compute_statistics(self):
         for record in self:
             # Import statistics - gebruik NIEUWE import history
@@ -66,7 +70,7 @@ class SupplierPricelistDashboard(models.Model):
             'name': 'Saved Mapping Templates',
             'type': 'ir.actions.act_window', 
             'res_model': 'supplier.mapping.template',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': [],  # Toon alle templates
             'context': {}
         }
@@ -77,7 +81,7 @@ class SupplierPricelistDashboard(models.Model):
             'name': 'Import History',
             'type': 'ir.actions.act_window',
             'res_model': 'supplier.import.history', 
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': []
         }
     
@@ -87,7 +91,7 @@ class SupplierPricelistDashboard(models.Model):
             'name': 'Import Errors - Products Not Found',
             'type': 'ir.actions.act_window',
             'res_model': 'supplier.import.error',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': [('error_type', '=', 'product_not_found'), ('resolved', '=', False)],
             'context': {'default_error_type': 'product_not_found'}
         }
@@ -101,7 +105,7 @@ class SupplierPricelistDashboard(models.Model):
             'name': 'Suppliers with Mappings',
             'type': 'ir.actions.act_window',
             'res_model': 'res.partner',
-            'view_mode': 'tree,form', 
+            'view_mode': 'list,form', 
             'domain': [('id', 'in', supplier_ids), ('is_company', '=', True)]
         }
 
