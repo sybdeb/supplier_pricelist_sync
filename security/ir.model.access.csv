@@ -6,3 +6,4 @@ access_supplier_mapping_template,supplier.mapping.template,model_supplier_mappin
 access_supplier_mapping_line,supplier.mapping.line,model_supplier_mapping_line,,1,1,1,1
 access_supplier_import_history,supplier.import.history,model_supplier_import_history,,1,1,1,1
 access_supplier_import_error,supplier.import.error,model_supplier_import_error,,1,1,1,1
+access_supplier_import_schedule,supplier.import.schedule,model_supplier_import_schedule,,1,1,1,1

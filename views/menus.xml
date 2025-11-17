@@ -11,6 +11,13 @@
               action="action_supplier_pricelist_dashboard"
               sequence="10"/>
 
+    <!-- Scheduled Imports -->
+    <menuitem id="menu_supplier_import_schedule"
+              name="Scheduled Imports"
+              parent="menu_supplier_pricelist_root"
+              action="action_supplier_import_schedule"
+              sequence="15"/>
+
     <!-- Mappings management -->
     <menuitem id="menu_supplier_pricelist_mappings"
               name="Column Mappings"
