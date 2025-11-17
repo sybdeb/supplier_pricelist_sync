@@ -7,12 +7,12 @@
         <field name="inherit_id" ref="product.product_supplierinfo_form_view"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='delay']" position="after">
-                <field name="order_qty"/>
-                <field name="supplier_stock"/>  
-                <field name="supplier_sku"/>
+                <field name="supplier_stock" string="Voorraad Leverancier"/>  
+                <field name="supplier_sku" string="Leverancier SKU"/>
+                <field name="order_qty" string="Bestel Hoeveelheid"/>
             </xpath>
             <!-- Product identification fields voor CSV matching -->
-            <xpath expr="//field[@name='supplier_sku']" position="after">
+            <xpath expr="//field[@name='order_qty']" position="after">
                 <separator string="Product Identificatie (voor CSV matching)"/>
                 <field name="product_name" readonly="1"/>
                 <field name="product_barcode" readonly="1"/>
@@ -28,8 +28,8 @@
         <field name="inherit_id" ref="product.product_supplierinfo_tree_view"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='price']" position="after">
-                <field name="order_qty"/>
-                <field name="supplier_stock" optional="hide"/>
+                <field name="supplier_stock" string="Voorraad Lev." optional="show"/>
+                <field name="order_qty" optional="hide"/>
                 <field name="supplier_sku" optional="hide"/>
                 <field name="product_name" optional="hide"/>
                 <field name="product_barcode" optional="hide"/>
