@@ -1,7 +1,7 @@
 {
     "name": "Supplier Pricelist Sync v2.1 (Scheduled Imports)",
-    "version": "18.0.2.1",
-    "summary": "Direct supplier pricelist import with automatic column mapping",
+    "version": "19.0.3.0",
+    "summary": "Direct supplier pricelist import with automatic column mapping (Odoo 19)",
     "description": """
 Direct Supplier Pricelist Import System:
 - Central Dashboard - Import management per supplier
@@ -10,10 +10,15 @@ Direct Supplier Pricelist Import System:
 - Template System - Save and reuse mappings per supplier
 - Bulk Processing - Handle large CSV files efficiently
 - Update Logic - Refresh existing records, no duplicates
-- Scheduled Imports - FTP/SFTP/API/Email automation (NEW v2.1)
-- Cron Integration - Automatic periodic imports (NEW v2.1)
+- Scheduled Imports - FTP/SFTP/API/Email automation
+- Cron Integration - Automatic periodic imports
 
-Built for Odoo 18 Community Edition
+✨ Odoo 19 Optimizations:
+- Enhanced editable field widgets for better UX
+- Improved context preservation in wizards
+- Cleaner code with reduced boilerplate
+
+Built for Odoo 19 Community Edition
 """,
     "author": "Nerbys",
     "website": "https://nerbys.nl",
