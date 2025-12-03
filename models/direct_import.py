@@ -26,12 +26,13 @@ class DirectImport(models.TransientModel):
     # FIELDS
     # =========================================================================
     
-    # Supplier context
+    # Supplier context (OPTIONAL - alleen verplicht voor prijslijst import)
     supplier_id = fields.Many2one(
         'res.partner', 
         string='Leverancier', 
         domain="[('supplier_rank', '>', 0)]", 
-        required=True
+        required=False,
+        help="Verplicht voor prijslijst import, optioneel voor alleen product updates"
     )
     
     # File upload (Binary auto-persists!)
@@ -376,33 +377,40 @@ class DirectImport(models.TransientModel):
         if product_fields:
             try:
                 product.write(product_fields)
+                stats['updated'] += 1
             except Exception as e:
                 _logger.warning(f"Could not update product {product.default_code}: {e}")
         
-        # STEP 3: Create/Update supplierinfo
-        if not supplierinfo_fields.get('price'):
-            raise ValidationError(f"Geen prijs gevonden voor product {product.default_code}")
-        
-        # Search existing supplierinfo
-        supplierinfo = self.env['product.supplierinfo'].search([
-            ('product_tmpl_id', '=', product.product_tmpl_id.id),
-            ('partner_id', '=', self.supplier_id.id)
-        ], limit=1)
-        
-        # Prepare supplierinfo values
-        vals = {
-            'partner_id': self.supplier_id.id,
-            'product_tmpl_id': product.product_tmpl_id.id,
-            **supplierinfo_fields
-        }
-        
-        # Create or update
-        if supplierinfo:
-            supplierinfo.write(vals)
-            stats['updated'] += 1
-        else:
-            self.env['product.supplierinfo'].create(vals)
-            stats['created'] += 1
+        # STEP 3: Create/Update supplierinfo (ONLY if we have supplierinfo fields)
+        if supplierinfo_fields:
+            # Validate: price is required for supplierinfo
+            if not supplierinfo_fields.get('price'):
+                raise ValidationError(f"Geen prijs gevonden voor product {product.default_code}")
+            
+            # CRITICAL: Check if supplier is set (required for supplierinfo)
+            if not self.supplier_id:
+                raise ValidationError("Geen leverancier geselecteerd! Selecteer een leverancier om prijzen te kunnen importeren.")
+            
+            # Search existing supplierinfo
+            supplierinfo = self.env['product.supplierinfo'].search([
+                ('product_tmpl_id', '=', product.product_tmpl_id.id),
+                ('partner_id', '=', self.supplier_id.id)
+            ], limit=1)
+            
+            # Prepare supplierinfo values
+            vals = {
+                'partner_id': self.supplier_id.id,
+                'product_tmpl_id': product.product_tmpl_id.id,
+                **supplierinfo_fields
+            }
+            
+            # Create or update
+            if supplierinfo:
+                supplierinfo.write(vals)
+                stats['updated'] += 1
+            else:
+                self.env['product.supplierinfo'].create(vals)
+                stats['created'] += 1
     
     def _convert_field_value(self, model, field_name, string_value):
         """Convert string value to correct field type"""
