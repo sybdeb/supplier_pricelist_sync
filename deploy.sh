@@ -5,43 +5,40 @@ set -e  # Stop bij errors
 
 echo "🚀 Deploying supplier_pricelist_sync naar Odoo 19 prod..."
 
-# 1. Sync module naar server
-echo "📦 Syncing bestanden..."
+# 1. Create clean archive (exclude dev files)
+echo "📦 Creating deployment archive..."
+tar czf /tmp/supplier_sync.tar.gz \
+  --exclude='.git' \
+  --exclude='__pycache__' \
+  --exclude='*.pyc' \
+  --exclude='.vscode' \
+  --exclude='deploy*.sh' \
+  --exclude='*.bat' \
+  --exclude='*.ps1' \
+  --exclude='*.md' \
+  --exclude='.pre-commit-config.yaml' \
+  --exclude='.pylintrc' \
+  --exclude='.github' \
+  --exclude='.aider*' \
+  -C .. supplier_pricelist_sync
 
-# Maak tijdelijke folder zonder onnodige files
-TMP_DIR=$(mktemp -d)
-cp -r . "$TMP_DIR/"
-cd "$TMP_DIR"
-rm -rf .git __pycache__ .dev .aider* *.pyc deploy.sh
-
-# Upload naar server via tar
-tar czf /tmp/supplier_sync.tar.gz .
+# 2. Upload to server
+echo "⬆️  Uploading to server..."
 scp /tmp/supplier_sync.tar.gz hetzner-sybren:/tmp/
 
-# Extract op server (hetzner-sybren heeft sudo)
-ssh hetzner-sybren "sudo rm -rf /home/sybren/services/odoo19-prod/data/addons/supplier_pricelist_sync && \
-                sudo mkdir -p /home/sybren/services/odoo19-prod/data/addons/supplier_pricelist_sync && \
-                sudo tar xzf /tmp/supplier_sync.tar.gz -C /home/sybren/services/odoo19-prod/data/addons/supplier_pricelist_sync/ && \
-                sudo chown -R 101:101 /home/sybren/services/odoo19-prod/data/addons/supplier_pricelist_sync && \
-                rm /tmp/supplier_sync.tar.gz"
+# 3. Extract on server (sybren owns addons now, no sudo needed!)
+echo "📂 Extracting on server..."
+ssh hetzner-sybren "cd /home/sybren/services/odoo19-prod/data/addons && \
+  rm -rf supplier_pricelist_sync && \
+  tar xzf /tmp/supplier_sync.tar.gz && \
+  rm /tmp/supplier_sync.tar.gz"
 
-# Cleanup
-cd - > /dev/null
-rm -rf "$TMP_DIR" /tmp/supplier_sync.tar.gz
-
-echo "✅ Bestanden gesynchroniseerd"
-
-# 2. Fix permissions via docker exec (geen sudo nodig)
-echo "🔧 Fixing permissions..."
-ssh hetzner-sybren "docker exec odoo19-prod-web-1 chown -R odoo:odoo /mnt/extra-addons/supplier_pricelist_sync"
-
-# 3. Module upgraden
-echo "⬆️  Upgrading module..."
-ssh hetzner-sybren "docker exec odoo19-prod-web-1 odoo -c /etc/odoo/odoo.conf -d odoo19_prod -u supplier_pricelist_sync --stop-after-init"
-
-# 4. Container herstarten
+# 4. Restart Odoo to pick up changes
 echo "🔄 Restarting Odoo..."
-ssh hetzner-sybren "docker restart odoo19-prod-web-1"
+ssh hetzner-sybren "cd /home/sybren/services/odoo19-prod && sudo docker compose restart web"
+
+# Cleanup local temp file
+rm -f /tmp/supplier_sync.tar.gz
 
 echo ""
 echo "✅ DEPLOY COMPLEET!"
