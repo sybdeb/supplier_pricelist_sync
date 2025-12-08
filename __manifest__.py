@@ -1,6 +1,6 @@
 {
     "name": "Supplier Pricelist Sync v2.1 (Scheduled Imports)",
-    "version": "18.0.2.1",
+    "version": "19.0.2.1.0",
     "summary": "Direct supplier pricelist import with automatic column mapping",
     "description": """
 Direct Supplier Pricelist Import System:
@@ -13,7 +13,7 @@ Direct Supplier Pricelist Import System:
 - Scheduled Imports - FTP/SFTP/API/Email automation (NEW v2.1)
 - Cron Integration - Automatic periodic imports (NEW v2.1)
 
-Built for Odoo 18 Community Edition
+Built for Odoo 19 Community Edition
 """,
     "author": "Nerbys",
     "website": "https://nerbys.nl",
