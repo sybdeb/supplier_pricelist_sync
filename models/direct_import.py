@@ -85,6 +85,18 @@ class DirectImport(models.TransientModel):
         try:
             # Decode CSV
             csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
+            
+            # AUTO-DETECT SEPARATOR if needed
+            first_line = csv_data.split('\n')[0]
+            if self.csv_separator == ';' and ',' in first_line and ';' not in first_line:
+                # Probably comma-separated, auto-switch
+                _logger.info(f"Auto-detected comma separator (found {first_line.count(',')} commas)")
+                self.csv_separator = ','
+            elif self.csv_separator == ',' and ';' in first_line and ',' not in first_line:
+                # Probably semicolon-separated
+                _logger.info(f"Auto-detected semicolon separator (found {first_line.count(';')} semicolons)")
+                self.csv_separator = ';'
+            
             csv_reader = csv.reader(io.StringIO(csv_data), delimiter=self.csv_separator)
             
             rows = list(csv_reader)
@@ -281,6 +293,7 @@ class DirectImport(models.TransientModel):
         
         history = self.env['supplier.import.history'].create({
             'supplier_id': self.supplier_id.id,
+            'schedule_id': self.env.context.get('schedule_id'),  # Link to schedule if called from scheduled import
             'filename': self.csv_filename,
             'state': 'running',
         })
@@ -367,6 +380,12 @@ class DirectImport(models.TransientModel):
         # Matching fields for product lookup
         barcode = None
         product_code = None
+        
+        # DEBUG LOGGING
+        if row_num == 2:  # Log first data row
+            _logger.info(f"DEBUG Row {row_num}: CSV row keys = {list(row.keys())}")
+            _logger.info(f"DEBUG Row {row_num}: Mapping = {mapping}")
+            _logger.info(f"DEBUG Row {row_num}: Row data = {dict(row)}")
         
         # Parse mapping and extract values
         for csv_col, odoo_field in mapping.items():

@@ -98,15 +98,16 @@ class SupplierPricelistDashboard(models.Model):
     
     def action_manage_suppliers(self):
         """Manage suppliers with mappings"""
-        # Use our custom mapping templates instead of base_import
-        supplier_ids = self.env['supplier.mapping.template'].search([]).mapped('supplier_id').ids
+        # Get all suppliers that have mapping templates
+        templates = self.env['supplier.mapping.template'].search([])
+        supplier_ids = templates.mapped('supplier_id.id')
         
         return {
             'name': 'Suppliers with Mappings',
             'type': 'ir.actions.act_window',
             'res_model': 'res.partner',
             'view_mode': 'list,form', 
-            'domain': [('id', 'in', supplier_ids), ('is_company', '=', True)]
+            'domain': [('id', 'in', supplier_ids)]
         }
 
     # Future: Cron/API methods will go here

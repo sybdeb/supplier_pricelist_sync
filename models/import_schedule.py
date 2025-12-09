@@ -6,7 +6,10 @@ Configureer automatische imports per leverancier via FTP/SFTP/API/Email
 
 from odoo import models, fields, api
 from odoo.exceptions import UserError, ValidationError
+import base64
 import logging
+import requests
+from datetime import datetime
 
 _logger = logging.getLogger(__name__)
 
@@ -485,20 +488,136 @@ class SupplierImportSchedule(models.Model):
         
         _logger.info(f"Starting scheduled import for {self.supplier_id.name} (method: {self.import_method})")
         
-        # TODO: Implement actual import logic in Fase 2
-        # Steps:
-        # 1. Download file (via FTP/API/Email depending on method)
-        # 2. Create supplier.direct.import wizard record
-        # 3. Load mapping from template
-        # 4. Process import
-        # 5. Log results
+        try:
+            # Step 1: Download data based on import method
+            file_data, filename = self._download_data()
+            
+            if not file_data:
+                raise UserError("Geen data ontvangen van bron")
+            
+            # Step 2: Create direct import wizard met downloaded data
+            import_wizard = self.env['supplier.direct.import'].with_context(
+                schedule_id=self.id  # Pass schedule ID for history linking
+            ).create({
+                'supplier_id': self.supplier_id.id,
+                'csv_file': base64.b64encode(file_data),
+                'csv_filename': filename,
+            })
+            
+            # Step 3: Parse & auto-map
+            import_wizard.action_parse_and_map()
+            
+            # Step 4: Laad mapping van template (overschrijf auto-mapping)
+            if self.mapping_template_id:
+                self._apply_mapping_template(import_wizard)
+            
+            # Step 5: Execute import
+            result = import_wizard.action_import_data()
+            
+            _logger.info(f"Scheduled import completed for {self.supplier_id.name}")
+            
+            # Update last run timestamp
+            self.write({'last_run': fields.Datetime.now()})
+            
+            return result
+            
+        except Exception as e:
+            _logger.error(f"Scheduled import failed for {self.name}: {e}")
+            # Create failed history record
+            self.env['supplier.import.history'].create({
+                'supplier_id': self.supplier_id.id,
+                'schedule_id': self.id,
+                'filename': filename if 'filename' in locals() else 'Unknown',
+                'state': 'failed',
+                'summary': f"Import gefaald: {str(e)}",
+            })
+            raise UserError(f"Import gefaald: {str(e)}")
+    
+    def _download_data(self):
+        """
+        Download data based on configured import method
+        Returns: (file_data_bytes, filename)
+        """
+        if self.import_method == 'api':
+            if self.api_url and self.api_url.startswith('http'):
+                # HTTP/HTTPS download (works for CSV/XML/JSON)
+                return self._download_http()
+            else:
+                # REST API with JSON response
+                return self._download_api()
+        elif self.import_method == 'ftp':
+            return self._download_ftp()
+        elif self.import_method == 'email':
+            return self._download_email()
+        else:
+            raise UserError(f"Import methode '{self.import_method}' nog niet geïmplementeerd")
+    
+    def _download_http(self):
+        """Download file via HTTP/HTTPS (CSV, XML, JSON)"""
+        if not self.api_url:
+            raise UserError("Geen API URL geconfigureerd")
         
-        raise UserError(
-            f"Scheduled import execution - Coming in Fase 2\n\n"
-            f"Import method: {self.import_method}\n"
-            f"Leverancier: {self.supplier_id.name}\n"
-            f"Mapping: {self.mapping_template_id.name if self.mapping_template_id else 'Geen'}"
-        )
+        try:
+            _logger.info(f"Downloading from HTTP: {self.api_url}")
+            
+            # Prepare headers
+            headers = {}
+            if self.api_auth_type == 'bearer' and self.api_token:
+                headers['Authorization'] = f'Bearer {self.api_token}'
+            elif self.api_auth_type == 'api_key' and self.api_token:
+                headers[self.api_token_header or 'X-API-Key'] = self.api_token
+            
+            # Prepare auth
+            auth = None
+            if self.api_auth_type == 'basic' and self.api_username and self.api_password:
+                auth = (self.api_username, self.api_password)
+            
+            # Make request
+            response = requests.get(
+                self.api_url,
+                headers=headers,
+                auth=auth,
+                timeout=30
+            )
+            response.raise_for_status()
+            
+            # Get filename from URL or content-disposition
+            filename = self.api_url.split('/')[-1]
+            if not filename or '?' in filename:
+                # Extract from URL or default
+                if 'xml' in self.api_url.lower():
+                    filename = f"download_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml"
+                elif 'json' in self.api_url.lower():
+                    filename = f"download_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                else:
+                    filename = f"download_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            
+            _logger.info(f"Downloaded {len(response.content)} bytes as {filename}")
+            return (response.content, filename)
+            
+        except requests.exceptions.RequestException as e:
+            raise UserError(f"HTTP download gefaald: {str(e)}")
+    
+    def _apply_mapping_template(self, import_wizard):
+        """Apply saved mapping template to import wizard"""
+        if not self.mapping_template_id:
+            return
+        
+        _logger.info(f"Applying mapping template: {self.mapping_template_id.name} ({len(self.mapping_template_id.mapping_line_ids)} lines)")
+        
+        # Delete auto-generated mappings
+        import_wizard.mapping_lines.unlink()
+        
+        # Create mapping lines from template
+        for template_line in self.mapping_template_id.mapping_line_ids:
+            new_line = self.env['supplier.direct.import.mapping.line'].create({
+                'import_id': import_wizard.id,
+                'csv_column': template_line.csv_column,
+                'odoo_field': template_line.odoo_field,
+                'sample_data': template_line.sample_data or '',
+                'sequence': template_line.sequence,
+            })
+            _logger.info(f"Created mapping: {template_line.csv_column} -> {template_line.odoo_field} (ID: {new_line.id})")
     
     def action_create_cron(self):
         """
