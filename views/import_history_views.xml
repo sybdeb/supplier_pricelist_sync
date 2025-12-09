@@ -27,7 +27,7 @@
         <field name="arch" type="xml">
             <form string="Import Details">
                 <header>
-                    <field name="state" widget="statusbar"/>
+                    <field name="state" widget="statusbar" statusbar_visible="running,completed,completed_with_errors,failed"/>
                 </header>
                 <sheet>
                     <group>
@@ -56,6 +56,11 @@
                         <page string="Summary">
                             <field name="summary" widget="text"/>
                         </page>
+                        <page string="Column Mapping" invisible="mapping_data == False">
+                            <group>
+                                <field name="mapping_data" widget="ace" options="{'mode': 'json'}" nolabel="1"/>
+                            </group>
+                        </page>
                         <page string="Errors" invisible="error_count == 0">
                             <field name="error_line_ids">
                                 <list>
@@ -79,14 +84,14 @@
         <field name="name">supplier.import.error.tree</field>
         <field name="model">supplier.import.error</field>
         <field name="arch" type="xml">
-            <list string="Import Errors - Products Not Found">
+            <list string="Import Errors - Products Not Found" decoration-muted="resolved == True">
                 <field name="history_id"/>
                 <field name="row_number"/>
                 <field name="barcode"/>
                 <field name="product_code"/>
                 <field name="product_name"/>
                 <field name="error_message"/>
-                <field name="resolved"/>
+                <field name="resolved" widget="boolean_toggle"/>
             </list>
         </field>
     </record>
@@ -99,10 +104,12 @@
             <form string="Import Error Details">
                 <header>
                     <button name="action_mark_resolved" string="Mark as Resolved" type="object" 
-                            invisible="resolved == True"/>
-                    <field name="resolved" widget="statusbar"/>
+                            invisible="resolved == True" class="btn-primary"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <field name="resolved" widget="boolean_toggle"/>
+                    </div>
                     <group>
                         <group>
                             <field name="history_id"/>

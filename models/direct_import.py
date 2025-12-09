@@ -9,7 +9,9 @@ from odoo.exceptions import UserError, ValidationError
 import base64
 import csv
 import io
+import json
 import logging
+from datetime import datetime
 
 _logger = logging.getLogger(__name__)
 
@@ -95,8 +97,26 @@ class DirectImport(models.TransientModel):
             if not data_rows:
                 raise UserError("Geen data rijen gevonden in CSV")
             
+            # Check if we should preserve existing mappings (gebruiker heeft handmatig aangepast)
+            preserve_mappings = bool(self.mapping_lines)
+            existing_mappings = {}
+            
+            if preserve_mappings:
+                # Bewaar huidige mappings
+                for line in self.mapping_lines:
+                    existing_mappings[line.csv_column] = line.odoo_field
+            
             # Clear existing mappings
             self.mapping_lines.unlink()
+            
+            # First pass: detect all headers to check for specific variants
+            all_headers_lower = {h.lower().strip() for h in headers}
+            
+            # Check if specific price column exists (to skip generic "Prijs")
+            has_specific_price = any(h in all_headers_lower for h in [
+                'prijs_incl_heffing', 'prijs_incl_heffingen', 
+                'prijs_inclusief_heffing', 'prijs_inclusief_heffingen'
+            ])
             
             # Create mapping lines met sample data
             mapping_vals = []
@@ -105,8 +125,13 @@ class DirectImport(models.TransientModel):
             for idx, header in enumerate(headers):
                 sample = first_row[idx] if idx < len(first_row) else ''
                 
-                # Auto-detect Odoo field
-                odoo_field = self._auto_detect_field(header, sample)
+                # Gebruik bestaande mapping als die er is, anders auto-detect
+                if preserve_mappings and header in existing_mappings:
+                    odoo_field = existing_mappings[header]
+                else:
+                    # Auto-detect Odoo field (alleen bij eerste parse)
+                    # Pass context about other columns
+                    odoo_field = self._auto_detect_field(header, sample, has_specific_price)
                 
                 mapping_vals.append((0, 0, {
                     'csv_column': header,
@@ -132,10 +157,15 @@ class DirectImport(models.TransientModel):
         except Exception as e:
             raise UserError(f"CSV Parse Error: {str(e)}")
     
-    def _auto_detect_field(self, csv_column, sample_data):
+    def _auto_detect_field(self, csv_column, sample_data, has_specific_price=False):
         """
         Auto-detect Odoo field based on CSV column name
         Returns: 'model.fieldname' format (bijv. 'product.barcode' of 'supplierinfo.price')
+        
+        Args:
+            csv_column: CSV column header
+            sample_data: Sample data from first row
+            has_specific_price: True if CSV has specific price column like "Prijs_incl_heffingen"
         """
         col_lower = csv_column.lower().strip()
         
@@ -149,7 +179,15 @@ class DirectImport(models.TransientModel):
             return 'product.default_code'
         
         # === SUPPLIERINFO FIELDS (leverancier-specifieke data) ===
-        if col_lower in ['prijs', 'price', 'unitprice', 'cost', 'inkoopprijs', 'prijs_incl_heffing']:
+        # Check voor "prijs_incl_heffingen" EERST (specifiekere match)
+        if col_lower in ['prijs_incl_heffing', 'prijs_incl_heffingen', 'prijs_inclusief_heffing', 
+                         'prijs_inclusief_heffingen', 'price_incl_tax', 'price_with_tax']:
+            return 'supplierinfo.price'
+        
+        # Skip generieke "Prijs" als er een specifiekere kolom bestaat
+        if col_lower in ['prijs', 'price', 'unitprice', 'cost', 'inkoopprijs']:
+            if has_specific_price and col_lower in ['prijs', 'price']:
+                return False  # Skip generic price if specific price exists
             return 'supplierinfo.price'
         
         # VOORRAAD LEVERANCIER (stock at supplier)
@@ -276,6 +314,16 @@ class DirectImport(models.TransientModel):
             # Calculate duration
             duration = time.time() - start_time
             
+            # Prepare mapping data for history (readable format)
+            mapping_info = []
+            for line in self.mapping_lines.sorted('sequence'):
+                if line.odoo_field:
+                    mapping_info.append({
+                        'csv_column': line.csv_column,
+                        'odoo_field': line.odoo_field,
+                        'sample_data': line.sample_data,
+                    })
+            
             # Update history record
             summary = self._create_import_summary(stats)
             history.write({
@@ -286,6 +334,7 @@ class DirectImport(models.TransientModel):
                 'error_count': len(stats['errors']),
                 'duration': duration,
                 'summary': summary,
+                'mapping_data': json.dumps(mapping_info, indent=2, ensure_ascii=False),
                 'state': 'completed_with_errors' if stats['errors'] else 'completed',
             })
             
@@ -637,4 +686,89 @@ class DirectImportMappingLine(models.TransientModel):
             _logger.warning(f"Could not load product fields: {e}")
         
         return fields_list
+    
+    def _save_mapping_as_template(self, mapping_info):
+        """
+        Sla mapping automatisch op als template voor hergebruik
+        - Zoekt bestaande auto-saved template voor deze leverancier
+        - Update als gevonden, anders create
+        - Handmatige templates worden nooit overschreven
+        """
+        if not self.supplier_id or not mapping_info:
+            return
+        
+        try:
+            MappingTemplate = self.env['supplier.mapping.template']
+            
+            # Zoek bestaande auto-saved template voor deze leverancier
+            existing = MappingTemplate.search([
+                ('supplier_id', '=', self.supplier_id.id),
+                ('is_auto_saved', '=', True)
+            ], limit=1)
+            
+            # Template naam met timestamp
+            template_name = f"Auto - {self.supplier_id.name} - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            
+            if existing:
+                # Update bestaande auto-saved template
+                existing.write({
+                    'name': template_name,
+                    'description': f'Automatisch opgeslagen tijdens import op {datetime.now().strftime("%Y-%m-%d %H:%M")}',
+                })
+                # Verwijder oude lines
+                existing.mapping_line_ids.unlink()
+                template_id = existing.id
+            else:
+                # Create nieuwe auto-saved template
+                template = MappingTemplate.create({
+                    'name': template_name,
+                    'supplier_id': self.supplier_id.id,
+                    'is_auto_saved': True,
+                    'description': f'Automatisch opgeslagen tijdens import op {datetime.now().strftime("%Y-%m-%d %H:%M")}',
+                })
+                template_id = template.id
+            
+            # Create mapping lines
+            MappingLine = self.env['supplier.mapping.line']
+            for idx, mapping in enumerate(mapping_info):
+                MappingLine.create({
+                    'template_id': template_id,
+                    'csv_column': mapping['csv_column'],
+                    'odoo_field': mapping['odoo_field'],
+                    'sample_data': mapping.get('sample_data', ''),
+                    'sequence': (idx + 1) * 10,
+                })
+            
+            _logger.info(f"Auto-saved mapping template '{template_name}' for supplier {self.supplier_id.name}")
+            
+        except Exception as e:
+            _logger.warning(f"Failed to auto-save mapping template: {e}")
+            # Don't fail the import if template save fails
+            pass
+    
+    def action_save_as_template(self):
+        """
+        Handmatig opslaan van mapping als herbruikbare template
+        Gebruiker geeft eigen naam - deze wordt NIET overschreven bij volgende imports
+        """
+        self.ensure_one()
+        
+        if not self.supplier_id:
+            raise UserError("Selecteer eerst een leverancier")
+        
+        if not self.mapping_lines:
+            raise UserError("Geen mapping beschikbaar om op te slaan")
+        
+        # Wizard voor template naam
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Mapping opslaan als Template',
+            'res_model': 'supplier.mapping.save.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_supplier_id': self.supplier_id.id,
+                'active_import_id': self.id,
+            }
+        }
 

@@ -56,6 +56,12 @@ class ImportHistory(models.Model):
         string='Import Errors'
     )
     
+    # Column mapping gebruikt tijdens import (JSON)
+    mapping_data = fields.Text(
+        'Column Mapping', 
+        help="JSON data van de kolom mapping gebruikt tijdens deze import"
+    )
+    
     # Summary text
     summary = fields.Text('Import Summary')
     

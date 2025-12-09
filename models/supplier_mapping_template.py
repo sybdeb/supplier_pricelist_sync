@@ -31,6 +31,12 @@ class SupplierMappingTemplate(models.Model):
         help="Leverancier voor wie deze mapping geldt"
     )
     
+    is_auto_saved = fields.Boolean(
+        string='Auto-opgeslagen',
+        default=False,
+        help="True als dit een automatisch opgeslagen mapping is (wordt overschreven). False voor handmatig opgeslagen templates."
+    )
+    
     description = fields.Text(
         string='Beschrijving',
         help="Optionele beschrijving van deze mapping"

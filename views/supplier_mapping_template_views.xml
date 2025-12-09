@@ -8,6 +8,7 @@
             <list string="Saved Mapping Templates">
                 <field name="name"/>
                 <field name="supplier_id"/>
+                <field name="is_auto_saved" string="Type"/>
                 <field name="create_date"/>
                 <field name="description"/>
             </list>
@@ -25,6 +26,7 @@
                         <group>
                             <field name="name"/>
                             <field name="supplier_id"/>
+                            <field name="is_auto_saved" readonly="1"/>
                             <field name="active"/>
                         </group>
                         <group>

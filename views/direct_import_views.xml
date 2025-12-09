@@ -57,7 +57,7 @@
                             <list editable="bottom" create="0" delete="0">
                                 <field name="sequence" widget="handle"/>
                                 <field name="csv_column" readonly="1"/>
-                                <field name="odoo_field" widget="char" readonly="0" force_save="1" required="0"/>
+                                <field name="odoo_field" force_save="1" required="0" options="{'no_create': True, 'no_open': True}"/>
                                 <field name="sample_data" readonly="1"/>
                             </list>
                         </field>
