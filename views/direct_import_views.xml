@@ -12,9 +12,28 @@
                         <p class="text-muted">Automatic column mapping based on supplier patterns</p>
                     </div>
                     
+                    <!-- Rate Limit Banner (Free Version) -->
+                    <field name="is_pro_version" invisible="1"/>
+                    <div class="alert alert-warning" style="margin-bottom: 15px;" invisible="is_pro_version">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>📊 Gratis Versie</strong> - Maximaal 2 imports per dag per leverancier
+                            </div>
+                            <a href="https://apps.odoo.com/apps/modules/19.0/supplier_pricelist_sync_pro/" 
+                               target="_blank" 
+                               class="btn btn-sm btn-success">
+                                🚀 Upgrade naar PRO
+                            </a>
+                        </div>
+                    </div>
+                    
                     <group>
                         <group>
                             <field name="supplier_id" options="{'no_create': True}"/>
+                            <field name="mapping_template_id" 
+                                   invisible="not supplier_id"
+                                   options="{'no_create': True}"
+                                   placeholder="Kies template of laat leeg voor auto-mapping"/>
                         </group>
                         <group>
                             <field name="csv_file" filename="csv_filename"/>

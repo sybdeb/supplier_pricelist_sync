@@ -38,7 +38,9 @@
             <form string="Scheduled Import">
                 <header>
                     <button name="action_run_import_now" type="object" string="▶ Run Import Now" 
-                            class="btn-success" invisible="not active or not mapping_template_id"/>
+                            class="btn-success" 
+                            invisible="not supplier_id or import_method == 'manual'"
+                            help="Voer een test import uit met de huidige configuratie"/>
                     <button name="action_view_history" type="object" string="📊 View History" 
                             class="btn-secondary"/>
                 </header>
@@ -59,17 +61,98 @@
                             <field name="supplier_id" options="{'no_create': True, 'no_open': True}"/>
                             <field name="import_method" widget="radio"/>
                         </group>
-                        <group name="connection" string="Verbinding" invisible="import_method == 'manual'">
+                        <group name="connection" string="Verbinding">
+                            <!-- HTTP/HTTPS Configuration -->
                             <field name="api_url" 
                                    string="Download URL"
                                    placeholder="http://46.224.16.150:8000/stock_latest.csv" 
+                                   invisible="import_method != 'http'"
+                                   required="import_method == 'http'"/>
+                            
+                            <!-- REST API Configuration -->
+                            <field name="api_url" 
+                                   string="API Endpoint"
+                                   placeholder="http://api.supplier.com/products" 
                                    invisible="import_method != 'api'"
                                    required="import_method == 'api'"/>
+                            <field name="api_auth_type" 
+                                   string="Authenticatie Type"
+                                   invisible="import_method != 'api'"/>
+                            <field name="api_username" 
+                                   string="Gebruikersnaam"
+                                   placeholder="api_user" 
+                                   invisible="import_method != 'api' or api_auth_type != 'basic'"/>
+                            <field name="api_password" 
+                                   string="Wachtwoord"
+                                   password="True" 
+                                   invisible="import_method != 'api' or api_auth_type != 'basic'"/>
+                            <field name="api_token" 
+                                   string="API Token/Key"
+                                   placeholder="your-api-token-here" 
+                                   invisible="import_method != 'api' or api_auth_type not in ('bearer', 'api_key')"/>
+                            <field name="api_token_header" 
+                                   string="Custom Header Naam"
+                                   placeholder="X-API-Key" 
+                                   invisible="import_method != 'api' or api_auth_type != 'api_key'"/>
+                            
+                            <!-- FTP/SFTP Configuration -->
+                            <field name="use_sftp" 
+                                   invisible="import_method != 'ftp'"/>
                             <field name="ftp_host" 
                                    string="FTP Server"
                                    placeholder="ftp.supplier.com" 
                                    invisible="import_method != 'ftp'"
                                    required="import_method == 'ftp'"/>
+                            <field name="ftp_port" 
+                                   string="Poort"
+                                   invisible="import_method != 'ftp'"
+                                   required="import_method == 'ftp'"/>
+                            <field name="ftp_user" 
+                                   string="Gebruikersnaam"
+                                   placeholder="ftpuser" 
+                                   invisible="import_method != 'ftp'"
+                                   required="import_method == 'ftp'"/>
+                            <field name="ftp_password" 
+                                   string="Wachtwoord"
+                                   password="True" 
+                                   invisible="import_method != 'ftp'"/>
+                            <field name="ftp_path" 
+                                   string="Bestandspad"
+                                   placeholder="/exports/" 
+                                   invisible="import_method != 'ftp'"
+                                   required="import_method == 'ftp'"/>
+                            <field name="ftp_filename_pattern" 
+                                   string="Bestandsnaam Patroon"
+                                   placeholder="*.csv" 
+                                   invisible="import_method != 'ftp'"/>
+                            
+                            <!-- Database Configuration -->
+                            <field name="db_type" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_host" 
+                                   placeholder="db.supplier.com" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_port" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_name" 
+                                   placeholder="productdb" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_user" 
+                                   placeholder="readonly_user" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_password" 
+                                   password="True" 
+                                   invisible="import_method != 'database'"/>
+                            <field name="db_query" 
+                                   widget="text"
+                                   placeholder="SELECT ean, sku, price, stock FROM products WHERE active = true" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
                         </group>
                     </group>
                     

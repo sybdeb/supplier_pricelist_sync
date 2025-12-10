@@ -54,12 +54,13 @@ class SupplierImportSchedule(models.Model):
     # =========================================================================
     
     import_method = fields.Selection([
-        ('manual', 'Handmatige Upload'),
-        ('ftp', 'FTP/SFTP'),
-        ('api', 'REST API'),
-        ('email', 'Email Bijlage'),
-    ], string='Import Methode', required=True, default='manual',
-       help="Hoe wordt de prijslijst ontvangen?")
+        ('ftp', 'Bestand Download (FTP/SFTP)'),
+        ('http', 'Website Link (HTTP/HTTPS)'),
+        ('api', 'API Koppeling (REST/JSON)'),
+        # ('email', 'Email Bijlage'),  # TODO: Implement in future phase
+        ('database', 'Database Query (PostgreSQL/MySQL)'),
+    ], string='Import Methode', required=True, default='http',
+       help="Hoe wordt de prijslijst ontvangen van de leverancier?")
     
     # =========================================================================
     # FTP/SFTP CONFIGURATION
@@ -206,6 +207,47 @@ class SupplierImportSchedule(models.Model):
         string='Markeer als Gelezen',
         default=True,
         help="Markeer verwerkte emails als gelezen"
+    )
+    
+    # =========================================================================
+    # DATABASE CONFIGURATION
+    # =========================================================================
+    
+    db_type = fields.Selection([
+        ('postgresql', 'PostgreSQL'),
+        ('mysql', 'MySQL'),
+        ('mssql', 'Microsoft SQL Server'),
+    ], string='Database Type', default='postgresql')
+    
+    db_host = fields.Char(
+        string='Database Host',
+        help="Server adres (bijv. db.supplier.com of 192.168.1.10)"
+    )
+    
+    db_port = fields.Integer(
+        string='Database Poort',
+        default=5432,
+        help="Standaard PostgreSQL: 5432, MySQL: 3306, MSSQL: 1433"
+    )
+    
+    db_name = fields.Char(
+        string='Database Naam',
+        help="Naam van de database"
+    )
+    
+    db_user = fields.Char(
+        string='Database Gebruiker',
+        help="Gebruikersnaam voor database login"
+    )
+    
+    db_password = fields.Char(
+        string='Database Wachtwoord',
+        help="Wachtwoord voor database login"
+    )
+    
+    db_query = fields.Text(
+        string='SQL Query',
+        help="SELECT query om data op te halen (moet CSV-compatible kolommen returnen)"
     )
     
     # =========================================================================
@@ -469,8 +511,7 @@ class SupplierImportSchedule(models.Model):
         if not self.active:
             raise UserError("Deze import is niet actief. Activeer eerst.")
         
-        if not self.mapping_template_id:
-            raise UserError("Geen mapping template geconfigureerd. Configureer eerst kolom mapping.")
+        # Note: mapping_template_id is optional - will be auto-created if missing
         
         try:
             # Call de scheduled import method
@@ -510,16 +551,23 @@ class SupplierImportSchedule(models.Model):
             # Step 4: Laad mapping van template (overschrijf auto-mapping)
             if self.mapping_template_id:
                 self._apply_mapping_template(import_wizard)
-            
-            # Step 5: Execute import
-            result = import_wizard.action_import_data()
-            
-            _logger.info(f"Scheduled import completed for {self.supplier_id.name}")
-            
-            # Update last run timestamp
-            self.write({'last_run': fields.Datetime.now()})
-            
-            return result
+                
+                # Step 5: Execute import
+                result = import_wizard.action_import_data()
+                
+                _logger.info(f"Scheduled import completed for {self.supplier_id.name}")
+                
+                # Update last run timestamp
+                self.write({'last_run': fields.Datetime.now()})
+                
+                return result
+            else:
+                # EERSTE RUN: Geen template? Maak er een aan en stop - gebruiker moet mappings invullen
+                _logger.info(f"Eerste import voor {self.supplier_id.name} - maak template aan met gedetecteerde kolommen")
+                template = self._create_mapping_template_from_wizard(import_wizard)
+                
+                # Reload current schedule to show linked template
+                return True
             
         except Exception as e:
             _logger.error(f"Scheduled import failed for {self.name}: {e}")
@@ -538,17 +586,15 @@ class SupplierImportSchedule(models.Model):
         Download data based on configured import method
         Returns: (file_data_bytes, filename)
         """
-        if self.import_method == 'api':
-            if self.api_url and self.api_url.startswith('http'):
-                # HTTP/HTTPS download (works for CSV/XML/JSON)
-                return self._download_http()
-            else:
-                # REST API with JSON response
-                return self._download_api()
+        if self.import_method == 'http' or self.import_method == 'api':
+            # HTTP/HTTPS download (CSV, XML, JSON files) and REST API calls
+            return self._download_http()
         elif self.import_method == 'ftp':
             return self._download_ftp()
         elif self.import_method == 'email':
             return self._download_email()
+        elif self.import_method == 'database':
+            return self._download_database()
         else:
             raise UserError(f"Import methode '{self.import_method}' nog niet geïmplementeerd")
     
@@ -593,31 +639,387 @@ class SupplierImportSchedule(models.Model):
                     filename = f"download_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
             
             _logger.info(f"Downloaded {len(response.content)} bytes as {filename}")
+            
+            # Check if content is JSON (by content-type or trying to parse)
+            content_type = response.headers.get('content-type', '').lower()
+            is_json = 'application/json' in content_type or filename.endswith('.json')
+            
+            # Als niet duidelijk uit headers/filename, probeer JSON te parsen
+            if not is_json and self.import_method == 'api':
+                try:
+                    import json
+                    json.loads(response.content.decode('utf-8'))
+                    is_json = True
+                    _logger.info("Detected JSON content from API response")
+                except:
+                    pass
+            
+            # Als JSON, converteer naar CSV
+            if is_json:
+                csv_content = self._convert_json_to_csv(response.content)
+                filename = filename.replace('.json', '.csv') if '.json' in filename else f"{filename}.csv"
+                _logger.info(f"Converted JSON to CSV format")
+                return (csv_content, filename)
+            
             return (response.content, filename)
             
         except requests.exceptions.RequestException as e:
             raise UserError(f"HTTP download gefaald: {str(e)}")
     
+    def _convert_json_to_csv(self, json_bytes):
+        """Convert JSON array to CSV format"""
+        import json
+        import csv
+        import io
+        
+        try:
+            data = json.loads(json_bytes.decode('utf-8'))
+            
+            if not isinstance(data, list):
+                raise UserError("API moet een JSON array returnen")
+            
+            if not data:
+                raise UserError("API returnde geen data")
+            
+            # Get all unique keys from all objects (some might have different fields)
+            all_keys = set()
+            for item in data:
+                if isinstance(item, dict):
+                    all_keys.update(item.keys())
+            
+            headers = sorted(all_keys)
+            
+            # Write CSV
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
+            writer.writeheader()
+            
+            for item in data:
+                if isinstance(item, dict):
+                    writer.writerow(item)
+            
+            csv_content = output.getvalue().encode('utf-8')
+            _logger.info(f"Converted {len(data)} JSON objects to CSV with {len(headers)} columns")
+            
+            return csv_content
+            
+        except json.JSONDecodeError as e:
+            raise UserError(f"Ongeldige JSON response: {str(e)}")
+        except Exception as e:
+            raise UserError(f"JSON naar CSV conversie gefaald: {str(e)}")
+    
+    def _download_ftp(self):
+        """Download file via FTP/SFTP"""
+        import fnmatch
+        
+        if not all([self.ftp_host, self.ftp_user, self.ftp_path]):
+            raise UserError("FTP configuratie incompleet: server, gebruiker en pad zijn verplicht")
+        
+        try:
+            if self.use_sftp:
+                # SFTP using paramiko
+                try:
+                    import paramiko
+                except ImportError:
+                    raise UserError("paramiko library niet geïnstalleerd. Installeer via: pip install paramiko")
+                
+                _logger.info(f"Connecting to SFTP: {self.ftp_user}@{self.ftp_host}:{self.ftp_port or 22}")
+                
+                transport = paramiko.Transport((self.ftp_host, self.ftp_port or 22))
+                transport.connect(username=self.ftp_user, password=self.ftp_password or '')
+                sftp = paramiko.SFTPClient.from_transport(transport)
+                
+                # List files in directory
+                files = sftp.listdir(self.ftp_path)
+                _logger.info(f"Found {len(files)} files in {self.ftp_path}")
+                
+                # Filter by pattern
+                pattern = self.ftp_filename_pattern or '*.csv'
+                matching_files = [f for f in files if fnmatch.fnmatch(f, pattern)]
+                
+                if not matching_files:
+                    raise UserError(f"Geen bestanden gevonden die matchen met patroon '{pattern}'")
+                
+                # Get most recent file (by name, assuming timestamped filenames)
+                latest_file = sorted(matching_files)[-1]
+                remote_path = f"{self.ftp_path.rstrip('/')}/{latest_file}"
+                
+                _logger.info(f"Downloading: {remote_path}")
+                
+                # Download file to BytesIO
+                from io import BytesIO
+                file_data = BytesIO()
+                sftp.getfo(remote_path, file_data)
+                
+                sftp.close()
+                transport.close()
+                
+                _logger.info(f"Downloaded {file_data.tell()} bytes from SFTP")
+                
+                return (file_data.getvalue(), latest_file)
+                
+            else:
+                # Standard FTP
+                import ftplib
+                
+                _logger.info(f"Connecting to FTP: {self.ftp_user}@{self.ftp_host}:{self.ftp_port or 21}")
+                
+                ftp = ftplib.FTP()
+                ftp.connect(self.ftp_host, self.ftp_port or 21)
+                ftp.login(self.ftp_user, self.ftp_password or '')
+                ftp.cwd(self.ftp_path)
+                
+                # List files
+                files = ftp.nlst()
+                pattern = self.ftp_filename_pattern or '*.csv'
+                matching_files = [f for f in files if fnmatch.fnmatch(f, pattern)]
+                
+                if not matching_files:
+                    raise UserError(f"Geen bestanden gevonden die matchen met patroon '{pattern}'")
+                
+                latest_file = sorted(matching_files)[-1]
+                
+                _logger.info(f"Downloading: {latest_file}")
+                
+                # Download file
+                from io import BytesIO
+                file_data = BytesIO()
+                ftp.retrbinary(f'RETR {latest_file}', file_data.write)
+                
+                ftp.quit()
+                
+                _logger.info(f"Downloaded {file_data.tell()} bytes from FTP")
+                
+                return (file_data.getvalue(), latest_file)
+                
+        except Exception as e:
+            raise UserError(f"FTP download gefaald: {str(e)}")
+    
+    def _download_database(self):
+        """Download data via database query (PostgreSQL, MySQL, MSSQL)"""
+        import csv
+        import io
+        
+        if not all([self.db_host, self.db_name, self.db_user, self.db_query]):
+            raise UserError("Database configuratie incompleet: host, naam, gebruiker en query zijn verplicht")
+        
+        try:
+            _logger.info(f"Connecting to {self.db_type} database: {self.db_host}:{self.db_port}/{self.db_name}")
+            
+            connection = None
+            cursor = None
+            
+            if self.db_type == 'postgresql':
+                try:
+                    import psycopg2
+                except ImportError:
+                    raise UserError("psycopg2 library niet geïnstalleerd. Installeer via: pip install psycopg2-binary")
+                
+                connection = psycopg2.connect(
+                    host=self.db_host,
+                    port=self.db_port or 5432,
+                    database=self.db_name,
+                    user=self.db_user,
+                    password=self.db_password or ''
+                )
+                
+            elif self.db_type == 'mysql':
+                try:
+                    import mysql.connector
+                except ImportError:
+                    raise UserError("mysql-connector library niet geïnstalleerd. Installeer via: pip install mysql-connector-python")
+                
+                connection = mysql.connector.connect(
+                    host=self.db_host,
+                    port=self.db_port or 3306,
+                    database=self.db_name,
+                    user=self.db_user,
+                    password=self.db_password or ''
+                )
+                
+            elif self.db_type == 'mssql':
+                try:
+                    import pymssql
+                except ImportError:
+                    raise UserError("pymssql library niet geïnstalleerd. Installeer via: pip install pymssql")
+                
+                connection = pymssql.connect(
+                    server=self.db_host,
+                    port=self.db_port or 1433,
+                    database=self.db_name,
+                    user=self.db_user,
+                    password=self.db_password or ''
+                )
+            
+            else:
+                raise UserError(f"Database type '{self.db_type}' niet ondersteund")
+            
+            # Execute query
+            cursor = connection.cursor()
+            _logger.info(f"Executing query: {self.db_query[:100]}...")
+            cursor.execute(self.db_query)
+            
+            # Fetch all results
+            rows = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+            
+            _logger.info(f"Query returned {len(rows)} rows with {len(columns)} columns")
+            
+            # Convert to CSV
+            csv_buffer = io.StringIO()
+            csv_writer = csv.writer(csv_buffer)
+            
+            # Write header
+            csv_writer.writerow(columns)
+            
+            # Write data rows
+            for row in rows:
+                csv_writer.writerow(row)
+            
+            # Get CSV content
+            csv_content = csv_buffer.getvalue()
+            csv_bytes = csv_content.encode('utf-8')
+            
+            # Close connection
+            cursor.close()
+            connection.close()
+            
+            filename = f"database_export_{self.supplier_id.name.replace(' ', '_')}.csv"
+            _logger.info(f"Database export successful: {filename} ({len(csv_bytes)} bytes)")
+            
+            return (csv_bytes, filename)
+            
+        except Exception as e:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
+            raise UserError(f"Database query gefaald: {str(e)}")
+    
     def _apply_mapping_template(self, import_wizard):
-        """Apply saved mapping template to import wizard"""
+        """Apply saved mapping template to import wizard with intelligent column matching"""
         if not self.mapping_template_id:
             return
         
         _logger.info(f"Applying mapping template: {self.mapping_template_id.name} ({len(self.mapping_template_id.mapping_line_ids)} lines)")
         
+        # Get available CSV columns from wizard
+        available_columns = [line.csv_column for line in import_wizard.mapping_lines]
+        available_lower = {col.lower(): col for col in available_columns}
+        
+        _logger.info(f"Available CSV columns: {available_columns}")
+        
+        # Check voor nieuwe kolommen die niet in template zitten (VOOR we mapping lines maken)
+        template_columns_lower = {line.csv_column.lower() for line in self.mapping_template_id.mapping_line_ids}
+        new_columns = [col for col in available_columns if col.lower() not in template_columns_lower]
+        
+        if new_columns:
+            _logger.info(f"Found {len(new_columns)} new columns not in template: {new_columns}")
+            # Voeg nieuwe kolommen toe aan template (zonder mapping)
+            for new_col in new_columns:
+                self.env['supplier.mapping.line'].create({
+                    'template_id': self.mapping_template_id.id,
+                    'csv_column': new_col,
+                    'odoo_field': False,  # Unmapped - gebruiker moet later invullen
+                    'sequence': 999,  # Onderaan
+                })
+                _logger.info(f"Added new unmapped column to template: {new_col}")
+        
         # Delete auto-generated mappings
         import_wizard.mapping_lines.unlink()
         
-        # Create mapping lines from template
+        # Create mapping lines from template met intelligente matching
         for template_line in self.mapping_template_id.mapping_line_ids:
+            csv_column = template_line.csv_column
+            
+            # Probeer exacte match
+            if csv_column not in available_columns:
+                # Probeer case-insensitive match
+                csv_lower = csv_column.lower()
+                if csv_lower in available_lower:
+                    csv_column = available_lower[csv_lower]
+                    _logger.info(f"Column mapping adjusted: '{template_line.csv_column}' -> '{csv_column}' (case-insensitive)")
+                else:
+                    # Probeer fuzzy match voor veelvoorkomende aliassen
+                    aliases = {
+                        'price': ['prijs', 'price_ex', 'netto_inkoopprijs_ex_btw', 'unitprice'],
+                        'stock': ['voorraad', 'qty', 'quantity', 'stock_qty'],
+                        'sku': ['article', 'artikel', 'product_code', 'artikelnummer'],
+                        'ean': ['barcode', 'ean13', 'gtin'],
+                        'brand': ['merk', 'fabrikant', 'manufacturer'],
+                    }
+                    
+                    # Zoek in aliassen
+                    matched = False
+                    for key, alias_list in aliases.items():
+                        if csv_lower in alias_list or csv_lower == key:
+                            # Zoek welke kolom in de CSV overeenkomt
+                            for alias in alias_list + [key]:
+                                if alias in available_lower:
+                                    csv_column = available_lower[alias]
+                                    _logger.info(f"Column mapping adjusted: '{template_line.csv_column}' -> '{csv_column}' (alias match)")
+                                    matched = True
+                                    break
+                            if matched:
+                                break
+                    
+                    if not matched:
+                        _logger.warning(f"Column '{template_line.csv_column}' from template not found in CSV, skipping")
+                        continue
+            
             new_line = self.env['supplier.direct.import.mapping.line'].create({
                 'import_id': import_wizard.id,
-                'csv_column': template_line.csv_column,
+                'csv_column': csv_column,
                 'odoo_field': template_line.odoo_field,
                 'sample_data': template_line.sample_data or '',
                 'sequence': template_line.sequence,
             })
-            _logger.info(f"Created mapping: {template_line.csv_column} -> {template_line.odoo_field} (ID: {new_line.id})")
+            _logger.info(f"Created mapping: {csv_column} -> {template_line.odoo_field} (ID: {new_line.id})")
+        
+        # Update template met laatste import info
+        self.mapping_template_id.write({
+            'last_import_columns': ','.join(available_columns),
+            'last_import_date': fields.Datetime.now(),
+        })
+        _logger.info(f"Updated template with {len(available_columns)} columns from this import")
+    
+    def _create_mapping_template_from_wizard(self, import_wizard):
+        """Maak een nieuwe mapping template aan vanuit de wizard's auto-mapping"""
+        self.ensure_one()
+        
+        # Get CSV columns from wizard
+        available_columns = [line.csv_column for line in import_wizard.mapping_lines]
+        
+        _logger.info(f"Creating new mapping template for {self.supplier_id.name} with {len(import_wizard.mapping_lines)} mappings")
+        
+        # Maak template aan
+        template = self.env['supplier.mapping.template'].create({
+            'name': f'Auto-mapping voor {self.supplier_id.name}',
+            'supplier_id': self.supplier_id.id,
+            'is_auto_saved': True,
+            'last_import_columns': ','.join(available_columns),
+            'last_import_date': fields.Datetime.now(),
+        })
+        
+        # Kopieer mapping lines van wizard naar template - ALLE kolommen
+        for wizard_line in import_wizard.mapping_lines:
+            self.env['supplier.mapping.line'].create({
+                'template_id': template.id,
+                'csv_column': wizard_line.csv_column,
+                'odoo_field': wizard_line.odoo_field or False,  # Ook opslaan als leeg
+                'sample_data': wizard_line.sample_data or '',
+                'sequence': wizard_line.sequence if hasattr(wizard_line, 'sequence') else 10,
+            })
+            if wizard_line.odoo_field:
+                _logger.info(f"Added mapping to template: {wizard_line.csv_column} -> {wizard_line.odoo_field}")
+            else:
+                _logger.info(f"Added unmapped column to template: {wizard_line.csv_column} (no mapping yet)")
+        
+        # Koppel template aan deze schedule
+        self.write({'mapping_template_id': template.id})
+        _logger.info(f"Created and linked template ID {template.id} to schedule {self.name}")
+        
+        return template
     
     def action_create_cron(self):
         """

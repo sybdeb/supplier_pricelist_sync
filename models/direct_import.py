@@ -37,6 +37,21 @@ class DirectImport(models.TransientModel):
         help="Verplicht voor prijslijst import, optioneel voor alleen product updates"
     )
     
+    # Template selection (optioneel - auto-load mapping)
+    mapping_template_id = fields.Many2one(
+        'supplier.mapping.template',
+        string='Gebruik Template',
+        domain="[('supplier_id', '=', supplier_id)]",
+        help="Kies een bestaande mapping template om automatisch te laden"
+    )
+    
+    # PRO version check (computed field voor UI)
+    is_pro_version = fields.Boolean(
+        string='PRO Versie',
+        compute='_compute_is_pro_version',
+        store=False
+    )
+    
     # File upload (Binary auto-persists!)
     csv_file = fields.Binary(string='CSV Bestand', required=True)
     csv_filename = fields.Char(string='Bestandsnaam')
@@ -67,6 +82,16 @@ class DirectImport(models.TransientModel):
     
     # Import results
     import_summary = fields.Text('Import Summary', readonly=True)
+    
+    # =========================================================================
+    # COMPUTED FIELDS
+    # =========================================================================
+    
+    @api.depends()
+    def _compute_is_pro_version(self):
+        """Check if PRO module is installed"""
+        for record in self:
+            record.is_pro_version = self._is_pro_version()
     
     # =========================================================================
     # PARSING & AUTO-MAPPING
@@ -153,6 +178,10 @@ class DirectImport(models.TransientModel):
             
             # Write mappings (in button method = persists!)
             self.write({'mapping_lines': mapping_vals})
+            
+            # Als er een template is geselecteerd, pas die toe
+            if self.mapping_template_id:
+                self._apply_template_to_mappings()
             
             # Return action to reload form and show mappings
             return {
@@ -260,14 +289,35 @@ class DirectImport(models.TransientModel):
         Voer de import uit met de geconfigureerde mapping
         Direct processing: CSV → Product lookup → Supplierinfo create/update
         + Import History Logging
+        + Rate Limiting (Free version: 2 imports per day per supplier)
         """
         self.ensure_one()
         
         if not self.csv_file:
             raise UserError("Geen CSV bestand gevonden")
         
+        # Check rate limit (Free version only)
+        if not self._check_rate_limit():
+            raise UserError(
+                "⚠️ Import limiet bereikt!\n\n"
+                "📊 Gratis versie: Maximum 2 imports per dag per leverancier\n"
+                f"   Leverancier: {self.supplier_id.name}\n"
+                f"   Vandaag uitgevoerd: {self._get_today_import_count()}/2\n\n"
+                "🚀 Upgrade naar Supplier Pricelist Sync PRO voor:\n"
+                "   • Unlimited manual imports\n"
+                "   • Automatische scheduled imports (HTTP/API/SFTP/Database)\n"
+                "   • Cron jobs & automation\n"
+                "   • Priority support\n\n"
+                "Meer info: https://apps.odoo.com/apps/modules/19.0/supplier_pricelist_sync_pro/"
+            )
+        
+        # Als er geen mapping lines zijn, probeer auto-mapping
         if not self.mapping_lines:
-            raise UserError("Parse eerst de CSV (klik 'Parse & Map')")
+            _logger.warning("Geen mapping lines gevonden, probeer auto-parse...")
+            try:
+                self.action_parse_and_map()
+            except Exception as e:
+                raise UserError(f"Kon CSV niet automatisch parsen: {str(e)}")
         
         # Get mapping configuration (model.field format)
         mapping = {line.csv_column: line.odoo_field for line in self.mapping_lines if line.odoo_field}
@@ -352,6 +402,9 @@ class DirectImport(models.TransientModel):
             })
             
             self.import_summary = summary
+            
+            # Auto-save mapping template altijd - ook bij 0 records (voor debugging)
+            self._auto_save_mapping_template()
             
             # Close wizard and show notification
             return {
@@ -549,221 +602,70 @@ class DirectImport(models.TransientModel):
     # TEMPLATE MANAGEMENT
     # =========================================================================
     
-    def action_save_as_template(self):
-        """Save current mapping as reusable template"""
-        self.ensure_one()
+    def _apply_template_to_mappings(self):
+        """Pas geselecteerde template toe op bestaande mapping lines"""
+        if not self.mapping_template_id:
+            return
         
-        if not self.mapping_lines:
-            raise UserError("Geen mapping om op te slaan")
+        template = self.mapping_template_id
+        _logger.info(f"Applying template '{template.name}' to direct import mappings")
         
-        # Check if template exists for this supplier
-        template = self.env['supplier.mapping.template'].search([
-            ('supplier_id', '=', self.supplier_id.id)
-        ], limit=1)
+        # Match template lines met CSV kolommen
+        csv_columns = {line.csv_column.lower(): line for line in self.mapping_lines}
         
-        # Prepare mapping lines
-        line_vals = []
-        for line in self.mapping_lines:
-            if line.odoo_field:  # Only save mapped columns
-                line_vals.append((0, 0, {
-                    'csv_column': line.csv_column,
-                    'odoo_field': line.odoo_field,
-                }))
+        updates_count = 0
+        for template_line in template.mapping_line_ids:
+            csv_lower = template_line.csv_column.lower()
+            
+            # Zoek matching CSV kolom (case-insensitive)
+            if csv_lower in csv_columns:
+                mapping_line = csv_columns[csv_lower]
+                if template_line.odoo_field:
+                    mapping_line.odoo_field = template_line.odoo_field
+                    updates_count += 1
+                    _logger.info(f"Applied template mapping: {template_line.csv_column} -> {template_line.odoo_field}")
         
-        if template:
-            # Update existing
-            template.write({
-                'mapping_line_ids': [(5, 0, 0)] + line_vals  # Clear + recreate
-            })
-            message = f"Template bijgewerkt voor {self.supplier_id.name}"
-        else:
-            # Create new
-            self.env['supplier.mapping.template'].create({
-                'supplier_id': self.supplier_id.id,
-                'name': f"Mapping voor {self.supplier_id.name}",
-                'mapping_line_ids': line_vals
-            })
-            message = f"Template opgeslagen voor {self.supplier_id.name}"
-        
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Template Opgeslagen',
-                'message': message,
-                'type': 'success',
-                'sticky': False,
-            }
-        }
+        _logger.info(f"Applied {updates_count} mappings from template '{template.name}'")
     
-    def _load_template_if_exists(self):
-        """Load mapping template if exists for supplier"""
+    # =========================================================================
+    # RATE LIMITING (Freemium Model)
+    # =========================================================================
+    
+    def _check_rate_limit(self):
+        """
+        Check if user is under rate limit
+        Free version: 2 imports per day per supplier
+        PRO version: Unlimited
+        """
+        # Check if PRO version is installed
+        if self._is_pro_version():
+            return True
+        
+        # Count imports today for this supplier
+        count = self._get_today_import_count()
+        return count < 2
+    
+    def _get_today_import_count(self):
+        """Count imports executed today for current supplier"""
         if not self.supplier_id:
-            return
+            return 0
         
-        template = self.env['supplier.mapping.template'].search([
-            ('supplier_id', '=', self.supplier_id.id)
+        today_start = fields.Datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        return self.env['supplier.import.history'].search_count([
+            ('supplier_id', '=', self.supplier_id.id),
+            ('create_date', '>=', today_start),
+            ('state', '!=', 'failed'),  # Don't count failed imports
+        ])
+    
+    def _is_pro_version(self):
+        """Check if PRO module is installed"""
+        pro_module = self.env['ir.module.module'].search([
+            ('name', '=', 'product_supplier_sync_pro'),
+            ('state', '=', 'installed')
         ], limit=1)
         
-        if template and template.mapping_lines:
-            # Apply template to current import
-            _logger.info(f"Loaded template for {self.supplier_id.name}")
-            # Template loading logic kan later
-            pass
-
-
-class DirectImportMappingLine(models.TransientModel):
-    """
-    Mapping line: CSV Column -> Odoo Field met sample data
-    TransientModel maar gebruikt IN button method, niet in @api.onchange
-    DYNAMISCHE FIELDS: Haalt alle beschikbare velden op uit models!
-    """
-    _name = 'supplier.direct.import.mapping.line'
-    _description = 'Direct Import Column Mapping Line'
-    _order = 'sequence, id'
-    
-    import_id = fields.Many2one('supplier.direct.import', required=True, ondelete='cascade')
-    sequence = fields.Integer(default=10)
-    
-    csv_column = fields.Char('CSV Column', required=True, readonly=True)
-    odoo_field = fields.Selection(
-        selection='_get_odoo_field_selection',
-        string='Odoo Field'
-    )
-    sample_data = fields.Char('Sample Data', readonly=True)
-    
-    @api.model
-    def _get_odoo_field_selection(self):
-        """
-        DYNAMISCH: Haal ALLE beschikbare velden op uit product.supplierinfo EN product.product
-        Net zoals Odoo's native import!
-        """
-        fields_list = []
-        
-        # 1. PRODUCT.SUPPLIERINFO velden (leverancier-specifieke info)
-        try:
-            supplierinfo_model = self.env['product.supplierinfo']
-            for fname, field in sorted(supplierinfo_model._fields.items()):
-                # Skip technische/system velden
-                if fname.startswith('_') or fname in [
-                    'id', 'create_date', 'write_date', 'create_uid', 'write_uid', 
-                    'display_name', '__last_update', 'product_tmpl_id', 'product_id', 
-                    'partner_id', 'company_id', 'currency_id'  # Deze worden auto-gezet
-                ]:
-                    continue
-                
-                # Skip relational fields die we niet direct importeren
-                if fname.endswith('_ids') or field.type in ['one2many', 'many2many']:
-                    continue
-                
-                # Alleen importeerbare velden
-                if field.type in ['char', 'text', 'float', 'integer', 'boolean', 'selection', 'date', 'datetime']:
-                    field_label = getattr(field, 'string', fname)
-                    fields_list.append((f'supplierinfo.{fname}', f'[Leverancier] {field_label}'))
-        except Exception as e:
-            _logger.warning(f"Could not load supplierinfo fields: {e}")
-        
-        # 2. PRODUCT.PRODUCT velden (algemene productinfo)
-        try:
-            product_model = self.env['product.product']
-            for fname, field in sorted(product_model._fields.items()):
-                # Skip technische velden
-                if fname.startswith('_') or fname in [
-                    'id', 'create_date', 'write_date', 'create_uid', 'write_uid',
-                    'display_name', '__last_update', 'message_ids', 'activity_ids',
-                    'product_tmpl_id', 'product_variant_id'
-                ]:
-                    continue
-                
-                # Skip ALLEEN computed velden die NIET related zijn
-                # Related velden zijn vaak schrijfbaar (zoals name → product_tmpl_id.name)
-                is_computed = getattr(field, 'compute', None) is not None
-                is_related = getattr(field, 'related', None) is not None
-                is_readonly = getattr(field, 'readonly', False)
-                
-                # Skip als computed EN niet related (of als explicitly readonly)
-                if is_computed and not is_related and is_readonly:
-                    continue
-                
-                # Skip relational many2many/one2many
-                if fname.endswith('_ids') or field.type in ['one2many', 'many2many']:
-                    continue
-                
-                # Skip velden met punt (submodel references)
-                if '.' in fname:
-                    continue
-                
-                # Alleen importeerbare velden
-                if field.type in ['char', 'text', 'float', 'integer', 'boolean', 'selection', 'many2one']:
-                    field_label = getattr(field, 'string', fname)
-                    # Many2one: toon field name (we verwachten ID of externe ID)
-                    if field.type == 'many2one':
-                        fields_list.append((f'product.{fname}', f'[Product] {field_label} (ID)'))
-                    else:
-                        fields_list.append((f'product.{fname}', f'[Product] {field_label}'))
-        except Exception as e:
-            _logger.warning(f"Could not load product fields: {e}")
-        
-        return fields_list
-    
-    def _save_mapping_as_template(self, mapping_info):
-        """
-        Sla mapping automatisch op als template voor hergebruik
-        - Zoekt bestaande auto-saved template voor deze leverancier
-        - Update als gevonden, anders create
-        - Handmatige templates worden nooit overschreven
-        """
-        if not self.supplier_id or not mapping_info:
-            return
-        
-        try:
-            MappingTemplate = self.env['supplier.mapping.template']
-            
-            # Zoek bestaande auto-saved template voor deze leverancier
-            existing = MappingTemplate.search([
-                ('supplier_id', '=', self.supplier_id.id),
-                ('is_auto_saved', '=', True)
-            ], limit=1)
-            
-            # Template naam met timestamp
-            template_name = f"Auto - {self.supplier_id.name} - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-            
-            if existing:
-                # Update bestaande auto-saved template
-                existing.write({
-                    'name': template_name,
-                    'description': f'Automatisch opgeslagen tijdens import op {datetime.now().strftime("%Y-%m-%d %H:%M")}',
-                })
-                # Verwijder oude lines
-                existing.mapping_line_ids.unlink()
-                template_id = existing.id
-            else:
-                # Create nieuwe auto-saved template
-                template = MappingTemplate.create({
-                    'name': template_name,
-                    'supplier_id': self.supplier_id.id,
-                    'is_auto_saved': True,
-                    'description': f'Automatisch opgeslagen tijdens import op {datetime.now().strftime("%Y-%m-%d %H:%M")}',
-                })
-                template_id = template.id
-            
-            # Create mapping lines
-            MappingLine = self.env['supplier.mapping.line']
-            for idx, mapping in enumerate(mapping_info):
-                MappingLine.create({
-                    'template_id': template_id,
-                    'csv_column': mapping['csv_column'],
-                    'odoo_field': mapping['odoo_field'],
-                    'sample_data': mapping.get('sample_data', ''),
-                    'sequence': (idx + 1) * 10,
-                })
-            
-            _logger.info(f"Auto-saved mapping template '{template_name}' for supplier {self.supplier_id.name}")
-            
-        except Exception as e:
-            _logger.warning(f"Failed to auto-save mapping template: {e}")
-            # Don't fail the import if template save fails
-            pass
+        return bool(pro_module)
     
     def action_save_as_template(self):
         """
@@ -790,4 +692,75 @@ class DirectImportMappingLine(models.TransientModel):
                 'active_import_id': self.id,
             }
         }
+    
+    def _auto_save_mapping_template(self):
+        """
+        Automatisch een mapping template opslaan na elke import
+        Ook bij 0 records - handig voor debugging
+        """
+        self.ensure_one()
+        
+        if not self.supplier_id or not self.mapping_lines:
+            return
+        
+        # Check if template already exists for this supplier
+        existing_template = self.env['supplier.mapping.template'].search([
+            ('supplier_id', '=', self.supplier_id.id)
+        ], limit=1)
+        
+        if existing_template:
+            _logger.info(f"Mapping template already exists for {self.supplier_id.name}, skipping auto-save")
+            return
+        
+        # Create new template with ALL columns (ook unmapped voor debugging)
+        template_name = f"Auto-mapping voor {self.supplier_id.name}"
+        
+        # Get available columns for metadata
+        available_columns = [line.csv_column for line in self.mapping_lines]
+        
+        mapping_lines = []
+        for line in self.mapping_lines:
+            mapping_lines.append((0, 0, {
+                'csv_column': line.csv_column,
+                'odoo_field': line.odoo_field or False,  # Ook opslaan als leeg
+                'sample_data': line.sample_data or '',
+                'sequence': line.sequence if hasattr(line, 'sequence') else 10,
+            }))
+        
+        template = self.env['supplier.mapping.template'].create({
+            'name': template_name,
+            'supplier_id': self.supplier_id.id,
+            'is_auto_saved': True,
+            'last_import_columns': ','.join(available_columns),
+            'mapping_line_ids': mapping_lines,  # CORRECT: mapping_line_ids, niet mapping_lines
+        })
+        
+        _logger.info(f"✅ Auto-saved mapping template #{template.id} for {self.supplier_id.name} with {len(mapping_lines)} columns")
+        return template
 
+
+
+class DirectImportMappingLine(models.TransientModel):
+    """
+    Mapping line: CSV Column -> Odoo Field met sample data
+    TransientModel maar gebruikt IN button method, niet in @api.onchange
+    DYNAMISCHE FIELDS: Haalt alle beschikbare velden op uit models!
+    """
+    _name = 'supplier.direct.import.mapping.line'
+    _description = 'Direct Import Column Mapping Line'
+    _order = 'sequence, id'
+    
+    import_id = fields.Many2one('supplier.direct.import', required=True, ondelete='cascade')
+    sequence = fields.Integer(default=10)
+    
+    csv_column = fields.Char('CSV Column', required=True, readonly=True)
+    odoo_field = fields.Selection(
+        selection='_get_odoo_field_selection',
+        string='Odoo Field'
+    )
+    sample_data = fields.Char('Sample Data', readonly=True)
+    
+    @api.model
+    def _get_odoo_field_selection(self):
+        """Reuse selection from supplier.mapping.line model"""
+        return self.env['supplier.mapping.line']._get_odoo_field_selection()

@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Tree view for supplier.mapping.line (used in One2many) -->
+    <record id="supplier_mapping_line_tree_view" model="ir.ui.view">
+        <field name="name">Mapping Line Tree</field>
+        <field name="model">supplier.mapping.line</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="not odoo_field">
+                <field name="csv_column"/>
+                <field name="odoo_field" placeholder="(leeg = kolom wordt genegeerd)"/>
+                <field name="sample_data"/>
+            </list>
+        </field>
+    </record>
+
     <!-- Tree view for supplier.mapping.template -->
     <record id="supplier_mapping_template_tree_view" model="ir.ui.view">
         <field name="name">Mapping Template Tree</field>
@@ -30,24 +43,24 @@
                             <field name="active"/>
                         </group>
                         <group>
+                            <field name="last_import_date" readonly="1"/>
                             <field name="create_date" readonly="1"/>
                             <field name="write_date" readonly="1"/>
-                            <field name="create_uid" readonly="1"/>
                         </group>
                     </group>
                     
                     <field name="description" placeholder="Beschrijving van deze mapping template"/>
                     
+                    <group string="Laatste Import Info" invisible="not last_import_columns">
+                        <field name="last_import_columns" readonly="1" widget="text"/>
+                        <field name="unmapped_columns" readonly="1" 
+                               class="text-danger" 
+                               invisible="unmapped_columns == '(alles gemapped)'"/>
+                    </group>
+                    
                     <notebook>
                         <page string="Column Mappings">
-                            <field name="mapping_line_ids">
-                                <list editable="bottom">
-                                    <field name="csv_column"/>
-                                    <field name="odoo_field"/>
-                                    <field name="sample_data"/>
-                                    <field name="sequence"/>
-                                </list>
-                            </field>
+                            <field name="mapping_line_ids" widget="one2many_list" context="{'tree_view_ref': 'product_supplier_sync.supplier_mapping_line_tree_view'}"/>
                         </page>
                     </notebook>
                 </sheet>

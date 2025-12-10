@@ -64,27 +64,47 @@ class MappingSaveWizard(models.TransientModel):
             'description': self.description or f'Handmatig opgeslagen mapping template',
         })
         
-        # Create mapping lines
+        # Get CSV columns for last_import_columns
+        all_columns = [line.csv_column for line in import_wizard.mapping_lines]
+        template.write({
+            'last_import_columns': ','.join(all_columns),
+            'last_import_date': fields.Datetime.now(),
+        })
+        
+        # Create mapping lines - ALLE kolommen, ook ongemapte
+        created_count = 0
+        unmapped_count = 0
         for line in import_wizard.mapping_lines:
-            if line.odoo_field:  # Only save mapped fields
-                self.env['supplier.mapping.line'].create({
-                    'template_id': template.id,
-                    'csv_column': line.csv_column,
-                    'odoo_field': line.odoo_field,
-                    'sample_data': line.sample_data,
-                    'sequence': line.sequence,
-                })
+            is_mapped = bool(line.odoo_field)
+            if not is_mapped:
+                unmapped_count += 1
+            
+            created_line = self.env['supplier.mapping.line'].create({
+                'template_id': template.id,
+                'csv_column': line.csv_column,
+                'odoo_field': line.odoo_field or False,  # Ook opslaan als leeg
+                'sample_data': line.sample_data or '',
+                'sequence': line.sequence,
+            })
+            created_count += 1
+            
+            odoo_field_display = line.odoo_field if line.odoo_field else "(unmapped)"
+            _logger.info(f"Saved line #{created_count}: '{line.csv_column}' -> '{odoo_field_display}' (ID: {created_line.id})")
         
-        _logger.info(f"Saved mapping template '{self.name}' for supplier {self.supplier_id.name}")
+        _logger.info(f"Saved mapping template '{self.name}' with {created_count} total columns ({created_count - unmapped_count} mapped, {unmapped_count} unmapped) for supplier {self.supplier_id.name}")
         
-        # Return notification
+        # Open the saved template
         return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Template Opgeslagen',
-                'message': f"Mapping '{self.name}' is opgeslagen en kan herbruikt worden",
-                'type': 'success',
-                'sticky': False,
+            'type': 'ir.actions.act_window',
+            'name': f'Template: {self.name}',
+            'res_model': 'supplier.mapping.template',
+            'res_id': template.id,
+            'view_mode': 'form',
+            'target': 'current',  # Open in main window, not popup
+            'context': {
+                'form_view_initial_mode': 'edit',
+            },
+            'flags': {
+                'mode': 'edit',
             }
         }

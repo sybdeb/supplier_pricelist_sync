@@ -1,348 +1,230 @@
-[![License: LGPL-3](https://img.shields.io/badge/licence-LGPL--3-blue.svg)](http://www.gnu.org/licenses/lgpl-3.0-standalone.html)# Supplier Pricelist Sync (Odoo 18 Community)
-
-[![OCA compliant](https://img.shields.io/badge/OCA-compliant-brightgreen.svg)](https://github.com/OCA/odoo-community.org/blob/master/website/Contribution/CONTRIBUTING.rst)
-
-### 🧩 Doel / Purpose
-
-# Supplier Pricelist Sync**NL:**  
-
-Deze module maakt het mogelijk om leveranciersprijslijsten (CSV) automatisch in te lezen, te koppelen aan producten, en op te slaan als supplierinfo.  
-
-Automated supplier pricelist import system for Odoo 18 Community Edition.De module gebruikt Odoo’s standaard importwizard (`base_import.import`) als basis en voegt kolomdetectie, preview en logging toe.  
-
-
-
-Import and synchronize supplier pricelists automatically via CSV files from FTP/SFTP, REST APIs, or email attachments.**EN:**  
-
-This module enables automatic import of supplier price lists (CSV), linking them to products and saving them as supplierinfo records.  
-
-## Table of ContentsIt extends Odoo’s standard import wizard (`base_import.import`) by adding column detection, preview, and logging features.  
-
-
-
-* [Features](#features)---
-
-* [Installation](#installation)
-
-* [Configuration](#configuration)### 🚀 Functionaliteit per versie / Version Overview
-
-* [Usage](#usage)
-
-* [Bug Tracker](#bug-tracker)#### v1.0
-
-* [Credits](#credits)- Basismodule + wizard skeleton  
-
-* [License](#license)- Upload CSV + leverancier  
-
-- Security en menu onder **Inkoop → Prijslijst Import**
-
-## Features
-
-#### v1.1
-
-### Core Functionality- Automatische headerdetectie via Odoo’s `base_import.import`  
-
-- Weergave gevonden kolommen  
-
-* **Manual CSV Import**- Kolomvelden en “Importeren”-knop pas zichtbaar na upload  
-
-  - Upload CSV files directly through intuitive wizard
-
-  - Automatic column detection and mapping#### v1.2 ✅
-
-  - Smart product matching (EAN/Barcode or SKU)- Redirect naar Odoo's native import met supplier context
-
-  - Bulk update of supplier prices- CSV preview met eerste 5 regels
-
-  - Download knop voor bevestigde CSV
-
-* **Automatic Column Mapping**
-
-  - Intelligent detection of CSV columns#### v1.3 (in progress / bezig) 🚧
-
-  - Mapping templates per supplier (reusable!)- Auto-detect kolomnamen (EAN, SKU, Prijs, Voorraad)
-
-  - Support for standard and custom fields- Automatisch partner_id/.id kolom toevoegen voor import
-
-  - Sample data preview before import- CSV met partner kolom downloaden of direct importeren
-
-- **Status**: Wizard werkt, handmatige import mogelijk
-
-* **Scheduled Imports (v2.1)**- **Blokkade**: Automatische redirect naar import met vooraf ingeladen CSV niet gerealiseerd
-
-  - FTP/SFTP server integration
-
-  - REST API endpoint support#### v1.4 (gepland / planned)
-
-  - Email attachment processing- Importgeschiedenis tracking
-
-  - Configurable cron schedules (daily/weekly/monthly)- Mapping opslag per leverancier
-
-- Statistieken en logs
-
-* **Import Management**
-
-  - Centralized dashboard with statistics#### v1.5 (gepland / planned)
-
-  - Complete import history tracking- Directe Python import (bypass Odoo wizard)
-
-  - Error logging and resolution workflow- Cron/API functionaliteit
-
-  - Products-not-found reporting
-
-#### v1.5 (optioneel / optional)
-
-* **Data Updates**- Cronjob of API-sync per leverancier  
-
-  - Create new supplier information records
-
-  - Update existing records (no duplicates)---
-
-  - Optional product field updates
-
-  - Supplier stock tracking### 🧱 Ontwerpprincipe / Design Principles
-
-**NL:**  
-
-### Supported Import Methods- **v1.2 aanpak**: Redirect naar Odoo's native import met supplier context
-
-- Preview functionaliteit om CSV te controleren voor import
-
-| Method | Status | Description |- Auto-toevoegen van partner_id/.id kolom voor Odoo import compatibility
-
-|--------|--------|-------------|- **Huidige blokkade**: Automatisch CSV inladen in import wizard werkt niet volledig
-
-| Manual Upload | ✅ Ready | Direct CSV file upload |- **Workaround**: Handmatige import via "Download CSV" knop mogelijk
-
-| FTP/SFTP | 🔧 Framework Ready | Automatic file download (Fase 2) |- **Toekomstig**: Directe Python import implementeren (v1.5) om Odoo wizard te bypassen
-
-| REST API | 🔧 Framework Ready | API endpoint integration (Fase 2) |
-
-| Email IMAP | 🔧 Framework Ready | Email attachment processing (Fase 2) |**EN:**  
-
-- **v1.2 approach**: Redirect to Odoo's native import with supplier context
-
-## Installation- Preview functionality to verify CSV before import
-
-- Auto-add partner_id/.id column for Odoo import compatibility
-
-### Prerequisites- **Current blocker**: Automatic CSV loading in import wizard not fully working
-
-- **Workaround**: Manual import via "Download CSV" button available
-
-* Odoo 18.0 Community Edition- **Future**: Direct Python import implementation (v1.5) to bypass Odoo wizard
-
-* Python 3.10+
-
-* PostgreSQL 12+---
-
-
-
-### Install Module### � Huidige Status / Current Status (v1.3-dev)
-
-
-
-1. Clone repository into Odoo addons directory:#### ✅ Werkend / Working
-
-- CSV upload met leverancier selectie
-
-```bash- Preview van eerste 5 regels na upload
-
-cd /path/to/odoo/addons/- Automatische header detectie via `base_import.import`
-
-git clone https://github.com/[your-username]/supplier_pricelist_sync.git- Auto-toevoegen van `partner_id/.id` kolom met leverancier ID
-
-```- Download knop voor aangepaste CSV met partner kolom
-
-- Wizard interface volledig functioneel
-
-2. Restart Odoo server:
-
-#### 🚧 In Development / Blokkades
-
-```bash- **Automatische CSV loading**: Redirect naar `/base_import/` met pre-loaded file werkt niet
-
-sudo systemctl restart odoo  - Geprobeerd: `action_redirect_to_import()` met verschillende parameter combinaties
-
-```  - Odoo's import wizard accepteert geen externe file data via context/params
-
-  - **Workaround**: Gebruiker kan CSV downloaden en handmatig importeren
-
-3. Update Apps list and install:  
-
-   - Login as Administrator#### 📋 Volgende Stappen / Next Steps
-
-   - Apps → Update Apps List1. **Optie A**: Directe Python import implementeren (v1.5 functionaliteit vervroegen)
-
-   - Search: "Supplier Pricelist Sync"   - Bypass Odoo's import wizard volledig
-
-   - Click: Install   - Eigen matching logica: EAN → `product.product.barcode`, SKU → `default_code`
-
-   - Direct schrijven naar `product.supplierinfo` model
-
-For detailed installation instructions, see [INSTALLATION.md](INSTALLATION.md).   
-
-2. **Optie B**: Import wizard verbeteren
-
-## Configuration   - Onderzoek Odoo source code voor file pre-loading
-
-   - Mogelijk via `base_import.import` record creation met file attachment
-
-### First-Time Setup
-
-3. **Mapping opslag** (v1.4)
-
-1. **Enable Suppliers**   - Per leverancier kolom mapping opslaan
-
-   - Go to: Purchases → Vendors   - Automatisch hergebruiken bij volgende imports
-
-   - Ensure suppliers have "Is a Vendor" flag enabled
-
----
-
-2. **Prepare Products**
-
-   - Products need EAN/Barcode OR Internal Reference (SKU)### �📁 Installatie / Installation
-
-   - Go to: Purchases → Products**NL:**  
-
-   - Fill in product.barcode or product.default_codePlaats de map `supplier_pricelist_sync/` in `/mnt/extra-addons/`  
-
-en activeer de module via Apps in debugmodus.  
-
-3. **Test Manual Import**
-
-   - Supplier Import → Dashboard → Manual Import**EN:**  
-
-   - Upload test CSVPlace the `supplier_pricelist_sync/` folder inside `/mnt/extra-addons/`  
-
-   - Configure mappingand activate the module through the Apps menu (debug mode recommended).  
-
-   - Run import
-
-   - Save mapping as template---
-
-
-
-### Scheduled Import Setup (v2.1)### 💡 Licentie / License
-
-Released under the **Odoo Community Association (OCA) open-source license terms**.  
-
-1. **Create Schedule**Compatible with **Odoo 18 Community Edition**.  
-
-   - Supplier Import → Scheduled Imports → New
-   - Select supplier
-   - Choose import method (FTP/API/Email)
-   - Configure connection details
-
-2. **Set Schedule**
-   - Daily: Choose time (e.g., 02:00)
-   - Weekly: Choose day and time
-   - Monthly: Choose day of month (1-28)
-
-3. **Activate**
-   - Click "Activate Scheduling"
-   - Cron job created automatically
-   - View next run time in form
-
-For complete usage guide, see [USER_MANUAL.md](USER_MANUAL.md).
-
-## Usage
-
-### Manual Import Workflow
-
-```
-1. Upload CSV → 2. Parse & Map → 3. Review → 4. Import → 5. Save Template
+# Supplier Pricelist Sync v2.1
+
+[![License: LGPL-3](https://img.shields.io/badge/licence-LGPL--3-blue.svg)](http://www.gnu.org/licenses/lgpl-3.0-standalone.html)
+[![Odoo Version](https://img.shields.io/badge/Odoo-19.0-purple.svg)](https://www.odoo.com/)
+
+**Automated supplier pricelist synchronization for Odoo 19 Community Edition**
+
+## 📋 Overview
+
+Import supplier pricelists directly into Odoo via multiple connection methods:
+- **HTTP/HTTPS** - Download CSV/JSON/XML files from web servers
+- **REST API** - Connect to supplier APIs with automatic JSON→CSV conversion  
+- **FTP/SFTP** - Retrieve files from FTP servers
+- **Database** - Direct PostgreSQL/MySQL/MSSQL queries
+
+Features intelligent column mapping, automatic template creation, and scheduled imports with full history tracking.
+
+## ✨ Key Features
+
+### 🔄 Multiple Import Methods
+- **HTTP/HTTPS Downloads** - Direct file downloads from URLs
+- **REST API Integration** - JSON APIs with automatic CSV conversion
+- **SFTP/FTP Servers** - Automated file retrieval with pattern matching
+- **Database Connections** - Direct SQL queries to supplier databases
+
+### 🎯 Smart Mapping System
+- **Auto-detection** - Automatically detects CSV columns on first import
+- **Template System** - Save and reuse column mappings per supplier
+- **Dynamic Updates** - Auto-adds new columns when supplier adds fields
+- **Flexible Mapping** - Map to product fields, supplier info, or leave unmapped
+
+### 📊 Import Management
+- **Scheduled Imports** - Configure automatic imports (hourly/daily/weekly)
+- **Manual Triggers** - Run imports on-demand with "Run Import Now" button
+- **Import History** - Complete audit trail with success/warning/error tracking
+- **Statistics Dashboard** - Overview of all imports per supplier
+
+### 🔐 Security & Authentication
+- **API Authentication** - Support for Basic Auth, Bearer tokens, and API keys
+- **SFTP Keys** - Secure file transfers with username/password
+- **Database Credentials** - Encrypted connection strings
+
+## 🚀 Installation
+
+### Requirements
+- Odoo 19.0 Community or Enterprise
+- Python 3.10+
+- PostgreSQL 12+
+
+### Dependencies
+The following Python packages are automatically installed:
+- `paramiko` - For SFTP connections
+- `psycopg2` - For PostgreSQL database imports (usually pre-installed)
+- `requests` - For HTTP/API imports (pre-installed with Odoo)
+
+### Install Steps
+
+1. **Clone or download** this module to your Odoo addons directory:
+```bash
+cd /path/to/odoo/addons
+git clone https://github.com/yourusername/supplier_pricelist_sync.git
 ```
 
-1. **Dashboard** → Manual Import
-2. Select **Supplier**
-3. Upload **CSV file**
-4. Click **Parse & Map**
-5. Review automatic mapping
-6. Click **Import Data**
-7. Check import summary
-8. **Save as Template** for next time
+2. **Restart Odoo** to load the new module
 
-### CSV Format
+3. **Update Apps List** in Odoo (Settings → Apps → Update Apps List)
 
-Minimum required columns:
+4. **Install Module**:
+   - Go to Apps
+   - Search for "Supplier Pricelist Sync"
+   - Click Install
 
-```csv
-EAN,Price
-8712345678901,12.50
-8712345678918,15.99
-```
+## 📖 Usage
 
-Extended format:
+### Quick Start: Manual Import
 
-```csv
-EAN,SKU,Price,Stock,MinQty,LeadTime
-8712345678901,ART-001,12.50,150,10,2
-8712345678918,ART-002,15.99,75,5,3
-```
+1. **Navigate** to Supplier Import → Direct Import
+2. **Select Supplier** from dropdown
+3. **Upload CSV** file
+4. **Review Mappings** - System auto-detects columns
+5. **Click Import** - Products are matched and updated
+
+### Scheduled Imports Setup
+
+1. **Navigate** to Supplier Import → Scheduled Imports
+2. **Create** new scheduled import
+3. **Configure** connection:
+   - Select import method (HTTP/API/SFTP/Database)
+   - Enter connection details (URL, credentials, etc.)
+   - Set schedule type (Manual/Hourly/Daily/Weekly)
+4. **Test** with "Run Import Now" button
+5. **Save** - On first run, template is auto-created
+6. **Map Columns** - Open template and assign Odoo fields
+7. **Activate** - Toggle active switch to enable automation
 
 ### Column Mapping
 
-**Product Matching (required, at least one):**
-- `product.barcode` - EAN/GTIN barcode
-- `product.default_code` - Internal SKU/reference
+#### First Import Flow
+1. System downloads data and detects columns
+2. Template created with all detected columns (unmapped)
+3. User opens template to assign mappings
+4. Future imports use saved mappings automatically
 
-**Supplier Info (required):**
-- `supplierinfo.price` - Purchase price (**mandatory**)
-- `supplierinfo.supplier_stock` - Stock at supplier
-- `supplierinfo.min_qty` - Minimum order quantity
-- `supplierinfo.order_qty` - Order quantity/package unit
-- `supplierinfo.delay` - Lead time in days
-- `supplierinfo.product_code` - Supplier's product code
-- `supplierinfo.product_name` - Product name at supplier
+#### Required Mappings
+For successful import, map at minimum:
+- **Product Identifier**: Either `Barcode` (EAN) or `Internal Reference` (SKU)
+- **Price**: `[Leverancier] Prijs` field
 
-**Product Info (optional):**
-- `product.name` - Product name
-- `product.description_purchase` - Purchase description
-- `product.weight` - Weight
-- `product.unspsc` - UNSPSC classification code
+#### Optional Mappings
+- **Stock**: Supplier stock quantity
+- **Delivery Time**: Lead time in days
+- **Product Name**: For creating new products
+- **Brand**: Product brand
 
-## Bug Tracker
+### Import Methods Details
 
-Bugs are tracked on [GitHub Issues](https://github.com/sybdeb/supplier_pricelist_sync/issues).
+#### HTTP/HTTPS
+- **Use for**: Direct file downloads (CSV, JSON, XML)
+- **Config**: Download URL
+- **Example**: `http://supplier.com/exports/pricelist.csv`
 
-In case of trouble, please check there if your issue has already been reported.
-If you spotted it first, help us smash it by providing detailed and welcomed feedback.
+#### REST API
+- **Use for**: JSON APIs
+- **Config**: API Endpoint + Authentication
+- **Features**: Automatic JSON to CSV conversion
+- **Auth Types**: None, Basic, Bearer Token, API Key
 
-## Credits
+#### FTP/SFTP
+- **Use for**: Files on FTP servers
+- **Config**: Host, Port, Username, Password, Path, Filename Pattern
+- **Features**: Automatically selects newest matching file
+- **Example Pattern**: `pricelist_*.csv`
 
-### Authors
+#### Database
+- **Use for**: Direct database queries
+- **Config**: DB Type, Host, Port, Database Name, Username, Password, SQL Query
+- **Supported**: PostgreSQL, MySQL, MS SQL Server
+- **Example Query**: `SELECT ean, sku, price, stock FROM products WHERE active = true`
 
-* Nerbys
+## 📁 Module Structure
 
-### Contributors
+```
+supplier_pricelist_sync/
+├── models/
+│   ├── dashboard.py                    # Statistics dashboard
+│   ├── direct_import.py                # Manual CSV import wizard
+│   ├── import_history.py               # Import audit trail
+│   ├── import_schedule.py              # Scheduled imports (main logic)
+│   ├── supplier_mapping_template.py    # Column mapping templates
+│   ├── product_supplierinfo.py         # Supplierinfo extensions
+│   ├── product_template.py             # Product template extensions
+│   └── base_import_extend.py           # Prevent duplicate supplierinfo
+├── wizard/
+│   └── mapping_save_wizard.py          # Save mapping as template
+├── views/
+│   ├── dashboard_views.xml
+│   ├── direct_import_views.xml
+│   ├── import_history_views.xml
+│   ├── import_schedule_views.xml
+│   ├── supplier_mapping_template_views.xml
+│   ├── product_supplierinfo_views.xml
+│   ├── product_template_views.xml
+│   └── menus.xml
+├── security/
+│   └── ir.model.access.csv
+├── data/                               # Sample CSV files
+│   ├── copaco_sample.csv
+│   ├── generic_sample.csv
+│   └── edge_case_sample.csv
+└── __manifest__.py
+```
 
-* Syb de Boer
+## 🔧 Configuration
 
-### Maintainers
+### Cron Jobs
+Scheduled imports automatically create cron jobs when activated. These can be managed via:
+- Settings → Technical → Automation → Scheduled Actions
 
-This module is maintained independently.
+### Access Rights
+Default access rights:
+- **Import Users**: Can view and run imports
+- **Import Managers**: Can create and configure schedules
+- Configure via Settings → Users & Companies → Groups
 
-To contribute to this module, please visit https://github.com/sybdeb/supplier_pricelist_sync.
+## 🐛 Known Issues & Limitations
 
-## License
+- Email attachment import not yet implemented (planned for v2.2)
+- XML parsing for API responses not implemented
+- Product auto-creation from failed imports planned for v2.2
 
-This project is licensed under LGPL-3 - see the [LICENSE](LICENSE) file for details.
+## 📝 Changelog
 
-----
+### v2.1.0 (Current - December 2025)
+- ✅ Multiple import methods (HTTP, API, SFTP, Database)
+- ✅ Automatic JSON to CSV conversion
+- ✅ Scheduled imports with cron integration
+- ✅ Template system with auto-column detection
+- ✅ Import history and statistics
+- ✅ Smart product matching (EAN/SKU)
+- ✅ Duplicate prevention for supplierinfo
 
-**Roadmap:**
+### v2.0.0 (October 2025)
+- Direct Python import (bypassing Odoo's native import)
+- Template-based column mapping
+- Import history tracking
+- Dashboard with statistics
 
-- [x] v2.0: Direct Import System with History Tracking
-- [x] v2.1: Scheduled Import Framework (FTP/API/Email)
-- [ ] v2.2: FTP/SFTP Execution (paramiko integration)
-- [ ] v2.3: REST API Execution (requests integration)
-- [ ] v2.4: Email IMAP Execution (imaplib integration)
-- [ ] v2.5: Excel file support (.xlsx)
-- [ ] v3.0: Multi-company support
-- [ ] v3.1: Product auto-creation from imports
+### v1.0.0 (September 2025)
+- Initial release with manual CSV import
 
-**Version:** 2.1.0  
-**Odoo:** 18.0 Community Edition  
-**Last Updated:** November 17, 2025
+## 👥 Credits
+
+**Author**: Nerbys  
+**Website**: https://nerbys.nl  
+**Maintainer**: Sybren de Bruijn
+
+## 📄 License
+
+This module is licensed under LGPL-3.  
+See [LICENSE](LICENSE) file for full details.
+
+## 🤝 Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## 📞 Support
+
+For issues or questions:
+- GitHub Issues: https://github.com/yourusername/supplier_pricelist_sync/issues
+- Email: support@nerbys.nl
