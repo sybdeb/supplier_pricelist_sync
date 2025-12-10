@@ -6,10 +6,10 @@
               action="action_product_central_dashboard"
               sequence="1"/>
     
-    <!-- Import Instellingen submenu onder Products > Configuration -->
+    <!-- Import Instellingen als submenu direct onder Products -->
     <menuitem id="menu_product_import_settings"
               name="Import Instellingen"
-              parent="stock.menu_stock_config"
+              parent="stock.menu_stock_root"
               sequence="100"/>
     
     <menuitem id="menu_import_mappings_new"
