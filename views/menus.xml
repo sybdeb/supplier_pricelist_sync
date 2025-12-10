@@ -1,15 +1,15 @@
 <odoo>
-    <!-- NIEUW: Centraal Product Dashboard onder Products menu -->
+    <!-- NIEUW: Centraal Product Dashboard onder Webshop Producten menu -->
     <menuitem id="menu_product_central_dashboard"
               name="Dashboard"
-              parent="stock.menu_stock_root"
+              parent="webshop_catalog_dashboard.menu_webshop_root"
               action="action_product_central_dashboard"
               sequence="1"/>
     
-    <!-- Import Instellingen als submenu direct onder Products -->
+    <!-- Import Instellingen als submenu direct onder Webshop Producten -->
     <menuitem id="menu_product_import_settings"
               name="Import Instellingen"
-              parent="stock.menu_stock_root"
+              parent="webshop_catalog_dashboard.menu_webshop_root"
               sequence="100"/>
     
     <menuitem id="menu_import_mappings_new"
