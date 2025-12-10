@@ -6,6 +6,11 @@
               action="action_product_central_dashboard"
               sequence="1"/>
     
+    <!-- Verberg oude dashboard (vervangen door nieuw gecombineerd dashboard) -->
+    <record id="webshop_catalog_dashboard.menu_webshop_dashboard" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+    
     <!-- Import Instellingen als submenu direct onder Webshop Producten -->
     <menuitem id="menu_product_import_settings"
               name="Import Instellingen"
