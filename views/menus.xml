@@ -1,7 +1,30 @@
 <odoo>
+    <!-- NIEUW: Centraal Product Dashboard onder Products menu -->
+    <menuitem id="menu_product_central_dashboard"
+              name="Dashboard"
+              parent="stock.menu_stock_root"
+              action="action_product_central_dashboard"
+              sequence="1"/>
+    
+    <!-- Import Instellingen submenu onder Products > Configuration -->
+    <menuitem id="menu_product_import_settings"
+              name="Import Instellingen"
+              parent="stock.menu_stock_config"
+              sequence="100"/>
+    
+    <menuitem id="menu_import_mappings_new"
+              name="Import Mappings"
+              parent="menu_product_import_settings"
+              action="action_supplier_mapping_template"
+              sequence="10"/>
+    
+    <!-- ========================================= -->
+    <!-- OUDE MENU ITEMS (blijven voorlopig)      -->
+    <!-- ========================================= -->
+    
     <!-- Hoofdmenu -->
     <menuitem id="menu_supplier_pricelist_root"
-              name="Supplier Import"
+              name="Supplier Import (OLD)"
               sequence="10"/>
 
     <!-- Dashboard (main entry point) -->

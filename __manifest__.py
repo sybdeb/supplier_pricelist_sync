@@ -23,6 +23,7 @@ Built for Odoo 19 Community Edition
     "data": [
         "security/ir.model.access.csv",
         "views/dashboard_views.xml",
+        "views/product_central_dashboard_views.xml",  # NIEUW: Centraal dashboard
         "views/direct_import_views.xml",
         "views/import_history_views.xml",
         "views/import_schedule_views.xml",

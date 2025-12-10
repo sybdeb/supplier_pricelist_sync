@@ -1,4 +1,5 @@
 from . import dashboard
+from . import product_central_dashboard  # NIEUW: Centraal dashboard
 from . import direct_import
 from . import supplier_mapping_template
 from . import product_supplierinfo
