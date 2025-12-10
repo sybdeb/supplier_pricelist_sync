@@ -6,9 +6,11 @@
               action="action_product_central_dashboard"
               sequence="1"/>
     
-    <!-- Verberg oude dashboard (vervangen door nieuw gecombineerd dashboard) -->
+    <!-- Verplaats oude dashboard naar beneden (sequence 999 = onderaan) -->
+    <!-- Naam aangepast zodat gebruikers weten dat dit de oude is -->
     <record id="webshop_catalog_dashboard.menu_webshop_dashboard" model="ir.ui.menu">
-        <field name="active" eval="False"/>
+        <field name="sequence">999</field>
+        <field name="name" type="json">{"nl_NL": "Dashboard (Oud - Webshop Only)", "en_US": "Dashboard (Old - Webshop Only)"}</field>
     </record>
     
     <!-- Import Instellingen als submenu direct onder Webshop Producten -->

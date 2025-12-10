@@ -25,13 +25,13 @@
                     
                     <div class="row">
                         <!-- Tegel 1: Klaar voor publicatie -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-success h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-check-circle fa-3x text-success mb-3"/>
-                                    <h2 class="mb-2"><field name="products_ready"/></h2>
-                                    <p class="text-muted mb-3">Klaar voor publicatie</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-check-circle fa-2x text-success mb-1"/>
+                                    <h3 class="mb-1"><field name="products_ready"/></h3>
+                                    <small class="text-muted d-block mb-2">Klaar voor publicatie</small>
                                     <button name="action_webshop_ready" 
                                             type="object" 
                                             class="btn btn-success btn-sm"
@@ -41,13 +41,13 @@
                         </div>
                         
                         <!-- Tegel 2: Mist hoofdafbeelding -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-warning h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-image fa-3x text-warning mb-3"/>
-                                    <h2 class="mb-2"><field name="products_missing_image"/></h2>
-                                    <p class="text-muted mb-3">Mist hoofdafbeelding</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-image fa-2x text-warning mb-1"/>
+                                    <h3 class="mb-1"><field name="products_missing_image"/></h3>
+                                    <small class="text-muted d-block mb-2">Mist hoofdafbeelding</small>
                                     <button name="action_missing_image" 
                                             type="object" 
                                             class="btn btn-warning btn-sm"
@@ -57,13 +57,13 @@
                         </div>
                         
                         <!-- Tegel 3: Mist verkoopprijs -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-danger h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-euro fa-3x text-danger mb-3"/>
-                                    <h2 class="mb-2"><field name="products_high_margin"/></h2>
-                                    <p class="text-muted mb-3">Mist verkoopprijs</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-euro fa-2x text-danger mb-1"/>
+                                    <h3 class="mb-1"><field name="products_high_margin"/></h3>
+                                    <small class="text-muted d-block mb-2">Mist verkoopprijs</small>
                                     <button name="action_missing_price" 
                                             type="object" 
                                             class="btn btn-danger btn-sm"
@@ -73,13 +73,13 @@
                         </div>
                         
                         <!-- Tegel 4: Mist omschrijving -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-warning h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-align-left fa-3x text-warning mb-3"/>
-                                    <h2 class="mb-2"><field name="products_missing_description"/></h2>
-                                    <p class="text-muted mb-3">Mist omschrijving</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-align-left fa-2x text-warning mb-1"/>
+                                    <h3 class="mb-1"><field name="products_missing_description"/></h3>
+                                    <small class="text-muted d-block mb-2">Mist omschrijving</small>
                                     <button name="action_missing_description" 
                                             type="object" 
                                             class="btn btn-warning btn-sm"
@@ -89,13 +89,13 @@
                         </div>
                         
                         <!-- Tegel 5: Mist EAN/barcode -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-warning h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-barcode fa-3x text-warning mb-3"/>
-                                    <h2 class="mb-2"><field name="products_missing_ean"/></h2>
-                                    <p class="text-muted mb-3">Mist EAN/barcode</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-barcode fa-2x text-warning mb-1"/>
+                                    <h3 class="mb-1"><field name="products_missing_ean"/></h3>
+                                    <small class="text-muted d-block mb-2">Mist EAN/barcode</small>
                                     <button name="action_missing_ean" 
                                             type="object" 
                                             class="btn btn-warning btn-sm"
@@ -105,13 +105,13 @@
                         </div>
                         
                         <!-- Tegel 6: Prijsdaling > 15% -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-info h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-line-chart fa-3x text-info mb-3"/>
-                                    <h2 class="mb-2"><field name="products_price_drop"/></h2>
-                                    <p class="text-muted mb-3">Prijsdaling &gt; 15%</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-line-chart fa-2x text-info mb-1"/>
+                                    <h3 class="mb-1"><field name="products_price_drop"/></h3>
+                                    <small class="text-muted d-block mb-2">Prijsdaling &gt; 15%</small>
                                     <button name="action_price_drop" 
                                             type="object" 
                                             class="btn btn-info btn-sm"
@@ -135,13 +135,13 @@
                     
                     <div class="row">
                         <!-- Tegel 1: Direct Import -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-primary h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-upload fa-3x text-primary mb-3"/>
-                                    <h4 class="mb-3">Direct Import</h4>
-                                    <p class="text-muted mb-3">Upload leverancier CSV</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-upload fa-2x text-primary mb-1"/>
+                                    <h4 class="mb-1">Direct Import</h4>
+                                    <small class="text-muted d-block mb-2">Upload CSV</small>
                                     <button name="action_direct_import" 
                                             type="object" 
                                             class="btn btn-primary"
@@ -151,13 +151,13 @@
                         </div>
                         
                         <!-- Tegel 2: Import History -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-info h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-history fa-3x text-info mb-3"/>
-                                    <h2 class="mb-2"><field name="total_imports"/></h2>
-                                    <p class="text-muted mb-3">Import History</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-history fa-2x text-info mb-1"/>
+                                    <h3 class="mb-1"><field name="total_imports"/></h3>
+                                    <small class="text-muted d-block mb-2">Import History</small>
                                     <button name="action_view_import_history" 
                                             type="object" 
                                             class="btn btn-info btn-sm"
@@ -167,13 +167,13 @@
                         </div>
                         
                         <!-- Tegel 3: Import Errors -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-danger h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-exclamation-triangle fa-3x text-danger mb-3"/>
-                                    <h2 class="mb-2"><field name="import_errors_count"/></h2>
-                                    <p class="text-muted mb-3">Import Errors</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-exclamation-triangle fa-2x text-danger mb-1"/>
+                                    <h3 class="mb-1"><field name="import_errors_count"/></h3>
+                                    <small class="text-muted d-block mb-2">Import Errors</small>
                                     <button name="action_view_import_errors" 
                                             type="object" 
                                             class="btn btn-danger btn-sm"
@@ -183,13 +183,13 @@
                         </div>
                         
                         <!-- Tegel 4: Active Suppliers -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-warning h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-users fa-3x text-warning mb-3"/>
-                                    <h2 class="mb-2"><field name="active_suppliers"/></h2>
-                                    <p class="text-muted mb-3">Active Suppliers</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-users fa-2x text-warning mb-1"/>
+                                    <h3 class="mb-1"><field name="active_suppliers"/></h3>
+                                    <small class="text-muted d-block mb-2">Active Suppliers</small>
                                     <button name="action_manage_suppliers" 
                                             type="object" 
                                             class="btn btn-warning btn-sm"
@@ -199,13 +199,13 @@
                         </div>
                         
                         <!-- Tegel 5: Scheduled Imports -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-success h-100" style="cursor: pointer;" 
                                  onclick="this.querySelector('button').click()">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-clock-o fa-3x text-success mb-3"/>
-                                    <h2 class="mb-2"><field name="pending_schedules"/></h2>
-                                    <p class="text-muted mb-3">Scheduled Imports</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-clock-o fa-2x text-success mb-1"/>
+                                    <h3 class="mb-1"><field name="pending_schedules"/></h3>
+                                    <small class="text-muted d-block mb-2">Scheduled Imports</small>
                                     <button name="action_view_schedules" 
                                             type="object" 
                                             class="btn btn-success btn-sm"
@@ -215,15 +215,15 @@
                         </div>
                         
                         <!-- Tegel 6: Volgende Import -->
-                        <div class="col-md-4 col-sm-6 mb-3">
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
                             <div class="card border-secondary h-100">
-                                <div class="card-body text-center">
-                                    <i class="fa fa-calendar fa-3x text-secondary mb-3"/>
-                                    <p class="text-muted mb-2">Volgende Import</p>
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-calendar fa-2x text-secondary mb-1"/>
+                                    <small class="text-muted d-block mb-1">Volgende Import</small>
                                     <field name="next_scheduled_import" widget="datetime"/>
                                     <button name="action_view_schedules" 
                                             type="object" 
-                                            class="btn btn-secondary btn-sm mt-3"
+                                            class="btn btn-secondary btn-sm mt-2"
                                             string="Planning"/>
                                 </div>
                             </div>
