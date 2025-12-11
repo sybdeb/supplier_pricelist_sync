@@ -1,58 +1,59 @@
 <odoo>
-    <!-- NIEUW: Centraal Product Dashboard onder Webshop Producten menu -->
-    <menuitem id="menu_product_central_dashboard"
-              name="Dashboard"
-              parent="webshop_catalog_dashboard.menu_webshop_root"
-              action="action_product_central_dashboard"
-              sequence="1"/>
-    
-    <!-- Verplaats oude dashboard naar beneden (sequence 999 = onderaan) -->
-    <!-- Naam aangepast zodat gebruikers weten dat dit de oude is -->
-    <record id="webshop_catalog_dashboard.menu_webshop_dashboard" model="ir.ui.menu">
-        <field name="sequence">999</field>
-        <field name="name" type="json">{"nl_NL": "Dashboard (Oud - Webshop Only)", "en_US": "Dashboard (Old - Webshop Only)"}</field>
-    </record>
-    
-    <!-- Import Instellingen als submenu direct onder Webshop Producten -->
-    <menuitem id="menu_product_import_settings"
-              name="Import Instellingen"
-              parent="webshop_catalog_dashboard.menu_webshop_root"
-              sequence="100"/>
-    
-    <menuitem id="menu_import_mappings_new"
-              name="Import Mappings"
-              parent="menu_product_import_settings"
-              action="action_supplier_mapping_template"
-              sequence="10"/>
-    
-    <!-- ========================================= -->
-    <!-- OUDE MENU ITEMS (blijven voorlopig)      -->
-    <!-- ========================================= -->
-    
-    <!-- Hoofdmenu -->
-    <menuitem id="menu_supplier_pricelist_root"
-              name="Supplier Import (OLD)"
-              sequence="10"/>
+    <data>
+        <!-- NIEUW: Centraal Product Dashboard onder Webshop Producten menu -->
+        <menuitem id="menu_product_central_dashboard"
+                  name="Dashboard"
+                  parent="webshop_catalog_dashboard.menu_webshop_root"
+                  action="action_product_central_dashboard"
+                  sequence="1"/>
+        
+        <!-- Verplaats oude dashboard naar beneden (sequence 999 = onderaan) -->
+        <!-- Naam aangepast zodat gebruikers weten dat dit de oude is -->
+        <record id="webshop_catalog_dashboard.menu_webshop_dashboard" model="ir.ui.menu">
+            <field name="sequence">999</field>
+            <field name="name" type="json">{"nl_NL": "Dashboard (Oud - Webshop Only)", "en_US": "Dashboard (Old - Webshop Only)"}</field>
+        </record>
+        
+        <!-- Import Instellingen als submenu direct onder Webshop Producten -->
+        <menuitem id="menu_product_import_settings"
+                  name="Import Instellingen"
+                  parent="webshop_catalog_dashboard.menu_webshop_root"
+                  sequence="100"/>
+        
+        <menuitem id="menu_import_mappings_new"
+                  name="Import Mappings"
+                  parent="menu_product_import_settings"
+                  action="action_supplier_mapping_template"
+                  sequence="10"/>
+        
+        <!-- ========================================= -->
+        <!-- OUDE MENU ITEMS (blijven voorlopig)      -->
+        <!-- ========================================= -->
+        
+        <!-- Hoofdmenu -->
+        <menuitem id="menu_supplier_pricelist_root"
+                  name="Supplier Import (OLD)"
+                  sequence="10"/>
 
-    <!-- Dashboard (main entry point) -->
-    <menuitem id="menu_supplier_pricelist_dashboard"
-              name="Dashboard" 
-              parent="menu_supplier_pricelist_root"
-              action="action_supplier_pricelist_dashboard"
-              sequence="10"/>
+        <!-- Dashboard (main entry point) -->
+        <menuitem id="menu_supplier_pricelist_dashboard"
+                  name="Dashboard" 
+                  parent="menu_supplier_pricelist_root"
+                  action="action_supplier_pricelist_dashboard"
+                  sequence="10"/>
 
-    <!-- Scheduled Imports -->
-    <menuitem id="menu_supplier_import_schedule"
-              name="Scheduled Imports"
-              parent="menu_supplier_pricelist_root"
-              action="action_supplier_import_schedule"
-              sequence="15"/>
+        <!-- Scheduled Imports -->
+        <menuitem id="menu_supplier_import_schedule"
+                  name="Scheduled Imports"
+                  parent="menu_supplier_pricelist_root"
+                  action="action_supplier_import_schedule"
+                  sequence="15"/>
 
-    <!-- Mappings management -->
-    <menuitem id="menu_supplier_pricelist_mappings"
-              name="Column Mappings"
-              parent="menu_supplier_pricelist_root"
-              action="action_supplier_mapping_template"
-              sequence="20"/>
-
+        <!-- Mappings management -->
+        <menuitem id="menu_supplier_pricelist_mappings"
+                  name="Column Mappings"
+                  parent="menu_supplier_pricelist_root"
+                  action="action_supplier_mapping_template"
+                  sequence="20"/>
+    </data>
 </odoo>
