@@ -6,13 +6,6 @@
               action="action_product_central_dashboard"
               sequence="1"/>
     
-    <!-- Verplaats oude dashboard naar beneden (sequence 999 = onderaan) -->
-    <!-- Naam aangepast zodat gebruikers weten dat dit de oude is -->
-    <record id="webshop_catalog_dashboard.menu_webshop_dashboard" model="ir.ui.menu">
-        <field name="sequence">999</field>
-        <field name="name" type="json">{"nl_NL": "Dashboard (Oud - Webshop Only)", "en_US": "Dashboard (Old - Webshop Only)"}</field>
-    </record>
-    
     <!-- Import Instellingen als submenu direct onder Webshop Producten -->
     <menuitem id="menu_product_import_settings"
               name="Import Instellingen"
@@ -54,4 +47,11 @@
               parent="menu_supplier_pricelist_root"
               action="action_supplier_mapping_template"
               sequence="20"/>
+    
+    <!-- Verplaats oude dashboard naar beneden (sequence 999 = onderaan) -->
+    <!-- Naam aangepast zodat gebruikers weten dat dit de oude is -->
+    <record id="webshop_catalog_dashboard.menu_webshop_dashboard" model="ir.ui.menu">
+        <field name="sequence">999</field>
+        <field name="name" type="json">{"nl_NL": "Dashboard (Oud - Webshop Only)", "en_US": "Dashboard (Old - Webshop Only)"}</field>
+    </record>
 </odoo>
