@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- ========================================================================= -->
+    <!-- SCHEDULED IMPORT: LIST VIEW -->
+    <!-- ========================================================================= -->
+    
+    <record id="view_supplier_import_schedule_list" model="ir.ui.view">
+        <field name="name">supplier.import.schedule.list</field>
+        <field name="model">supplier.import.schedule</field>
+        <field name="arch" type="xml">
+            <list string="Scheduled Imports">
+                <field name="active" widget="boolean_toggle"/>
+                <field name="supplier_id"/>
+                <field name="name"/>
+                <field name="import_method"/>
+                <field name="schedule_type"/>
+                <field name="next_run"/>
+                <field name="last_run"/>
+                <field name="last_run_status" decoration-success="last_run_status == 'success'" 
+                       decoration-warning="last_run_status == 'warning'"
+                       decoration-danger="last_run_status == 'error'"/>
+                <field name="total_runs"/>
+                <field name="success_runs"/>
+                <field name="failed_runs"/>
+            </list>
+        </field>
+    </record>
+    
+    <!-- ========================================================================= -->
+    <!-- SCHEDULED IMPORT: SIMPLE FORM VIEW -->
+    <!-- ========================================================================= -->
+    
+    <record id="view_supplier_import_schedule_form" model="ir.ui.view">
+        <field name="name">supplier.import.schedule.form</field>
+        <field name="model">supplier.import.schedule</field>
+        <field name="arch" type="xml">
+            <form string="Scheduled Import">
+                <header>
+                    <button name="action_run_import_now" type="object" string="▶ Run Import Now" 
+                            class="btn-success" 
+                            invisible="not supplier_id or import_method == 'manual'"
+                            help="Voer een test import uit met de huidige configuratie"/>
+                    <button name="action_view_history" type="object" string="📊 View History" 
+                            class="btn-secondary"/>
+                </header>
+                
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <field name="active" widget="boolean_toggle"/>
+                    </div>
+                    
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Bijvoorbeeld: Dagelijkse CSV download"/>
+                        </h1>
+                    </div>
+                    
+                    <group>
+                        <group name="basic" string="Basis Instellingen">
+                            <field name="supplier_id" options="{'no_create': True, 'no_open': True}"/>
+                            <field name="import_method" widget="radio"/>
+                        </group>
+                        <group name="connection" string="Verbinding">
+                            <!-- HTTP/HTTPS Configuration -->
+                            <field name="api_url" 
+                                   string="Download URL"
+                                   placeholder="http://46.224.16.150:8000/stock_latest.csv" 
+                                   invisible="import_method != 'http'"
+                                   required="import_method == 'http'"/>
+                            
+                            <!-- REST API Configuration -->
+                            <field name="api_url" 
+                                   string="API Endpoint"
+                                   placeholder="http://api.supplier.com/products" 
+                                   invisible="import_method != 'api'"
+                                   required="import_method == 'api'"/>
+                            <field name="api_auth_type" 
+                                   string="Authenticatie Type"
+                                   invisible="import_method != 'api'"/>
+                            <field name="api_username" 
+                                   string="Gebruikersnaam"
+                                   placeholder="api_user" 
+                                   invisible="import_method != 'api' or api_auth_type != 'basic'"/>
+                            <field name="api_password" 
+                                   string="Wachtwoord"
+                                   password="True" 
+                                   invisible="import_method != 'api' or api_auth_type != 'basic'"/>
+                            <field name="api_token" 
+                                   string="API Token/Key"
+                                   placeholder="your-api-token-here" 
+                                   invisible="import_method != 'api' or api_auth_type not in ('bearer', 'api_key')"/>
+                            <field name="api_token_header" 
+                                   string="Custom Header Naam"
+                                   placeholder="X-API-Key" 
+                                   invisible="import_method != 'api' or api_auth_type != 'api_key'"/>
+                            
+                            <!-- FTP/SFTP Configuration -->
+                            <field name="use_sftp" 
+                                   invisible="import_method != 'ftp'"/>
+                            <field name="ftp_host" 
+                                   string="FTP Server"
+                                   placeholder="ftp.supplier.com" 
+                                   invisible="import_method != 'ftp'"
+                                   required="import_method == 'ftp'"/>
+                            <field name="ftp_port" 
+                                   string="Poort"
+                                   invisible="import_method != 'ftp'"
+                                   required="import_method == 'ftp'"/>
+                            <field name="ftp_user" 
+                                   string="Gebruikersnaam"
+                                   placeholder="ftpuser" 
+                                   invisible="import_method != 'ftp'"
+                                   required="import_method == 'ftp'"/>
+                            <field name="ftp_password" 
+                                   string="Wachtwoord"
+                                   password="True" 
+                                   invisible="import_method != 'ftp'"/>
+                            <field name="ftp_path" 
+                                   string="Bestandspad"
+                                   placeholder="/exports/" 
+                                   invisible="import_method != 'ftp'"
+                                   required="import_method == 'ftp'"/>
+                            <field name="ftp_filename_pattern" 
+                                   string="Bestandsnaam Patroon"
+                                   placeholder="*.csv" 
+                                   invisible="import_method != 'ftp'"/>
+                            
+                            <!-- Database Configuration -->
+                            <field name="db_type" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_host" 
+                                   placeholder="db.supplier.com" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_port" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_name" 
+                                   placeholder="productdb" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_user" 
+                                   placeholder="readonly_user" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                            <field name="db_password" 
+                                   password="True" 
+                                   invisible="import_method != 'database'"/>
+                            <field name="db_query" 
+                                   widget="text"
+                                   placeholder="SELECT ean, sku, price, stock FROM products WHERE active = true" 
+                                   invisible="import_method != 'database'"
+                                   required="import_method == 'database'"/>
+                        </group>
+                    </group>
+                    
+                    <group>
+                        <group string="Mapping &amp; Planning">
+                            <field name="mapping_template_id" 
+                                   domain="[('supplier_id', '=', supplier_id)]"
+                                   context="{'default_supplier_id': supplier_id}"
+                                   options="{'no_create': True}"/>
+                            <field name="schedule_type" invisible="import_method == 'manual'"/>
+                        </group>
+                        <group string="Status" invisible="not id">
+                            <field name="last_run" readonly="1"/>
+                            <field name="total_runs" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <notebook invisible="not id">
+                        <page string="📋 Details" name="details" invisible="import_method == 'manual'">
+                            <group string="Test URLs (voor demo)">
+                                <div class="alert alert-info">
+                                    <strong>CSV:</strong> http://46.224.16.150:8000/stock_latest.csv<br/>
+                                    <strong>XML:</strong> http://46.224.16.150:8080/products_latest.xml<br/>
+                                    <strong>JSON:</strong> http://46.224.16.150:3000/products
+                                </div>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- ========================================================================= -->
+    <!-- SCHEDULED IMPORT: KANBAN VIEW -->
+    <!-- ========================================================================= -->
+    
+    <record id="view_supplier_import_schedule_kanban" model="ir.ui.view">
+        <field name="name">supplier.import.schedule.kanban</field>
+        <field name="model">supplier.import.schedule</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile">
+                <field name="name"/>
+                <field name="supplier_id"/>
+                <field name="import_method"/>
+                <field name="schedule_type"/>
+                <field name="active"/>
+                <field name="last_run_status"/>
+                <field name="next_run"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_global_click">
+                            <div class="o_kanban_record_top">
+                                <div class="o_kanban_record_headings">
+                                    <strong class="o_kanban_record_title">
+                                        <field name="name"/>
+                                    </strong>
+                                    <div class="o_kanban_record_subtitle">
+                                        <field name="supplier_id"/>
+                                    </div>
+                                </div>
+                                <widget name="web_ribbon" title="Inactive" bg_color="bg-danger" invisible="active"/>
+                            </div>
+                            <div class="o_kanban_record_body">
+                                <div>Method: <field name="import_method"/></div>
+                                <div>Schedule: <field name="schedule_type"/></div>
+                                <div invisible="schedule_type == 'manual'">
+                                    Next: <field name="next_run" widget="datetime"/>
+                                </div>
+                            </div>
+                            <div class="o_kanban_record_bottom">
+                                <div class="oe_kanban_bottom_left">
+                                    <field name="last_run_status" widget="label_selection" 
+                                           options="{'classes': {'success': 'success', 'warning': 'warning', 'error': 'danger'}}"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+    
+    <!-- ========================================================================= -->
+    <!-- ACTIONS -->
+    <!-- ========================================================================= -->
+    
+    <record id="action_supplier_import_schedule" model="ir.actions.act_window">
+        <field name="name">Scheduled Imports</field>
+        <field name="res_model">supplier.import.schedule</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configureer automatische imports
+            </p>
+            <p>
+                Stel periodieke imports in via FTP/SFTP, REST API of Email.<br/>
+                Koppel een leverancier, kies import methode en planning.
+            </p>
+        </field>
+    </record>
+    
+</odoo>

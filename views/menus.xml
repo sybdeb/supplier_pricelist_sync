@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Scheduled Imports menu item -->
+    <menuitem
+        id="menu_supplier_import_schedule"
+        name="Scheduled Imports"
+        parent="product_supplier_sync.menu_supplier_pricelist_root"
+        action="action_supplier_import_schedule"
+        sequence="20"/>
+</odoo>
