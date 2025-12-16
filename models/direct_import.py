@@ -260,8 +260,17 @@ class DirectImport(models.TransientModel):
                 'history_id': history.id  # Pass history ID for error logging
             }
             
+            # Batch processing: process in chunks of 500 rows
+            BATCH_SIZE = 500
+            batch_count = 0
+            
             for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header = 1)
                 stats['total'] += 1
+                # Commit after each batch to prevent timeout
+                if stats["total"] % BATCH_SIZE == 0:
+                    self.env.cr.commit()
+                    batch_count += 1
+                    _logger.info(f"Batch {batch_count} processed ({stats["total"]} rows)")
                 
                 try:
                     self._process_row(row, mapping, stats, row_num)
