@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Centraal Product Dashboard Form View -->
+    <record id="view_product_central_dashboard_form" model="ir.ui.view">
+        <field name="name">product.central.dashboard.form</field>
+        <field name="model">product.central.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Product Dashboard" create="false" edit="false">
+                <sheet>
+                    <div class="oe_title mb-4">
+                        <h1>Product Management Dashboard</h1>
+                    </div>
+                    
+                    <!-- ============================================ -->
+                    <!-- SECTIE 1: WEBSHOP CATALOG                   -->
+                    <!-- ============================================ -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h2 class="text-primary">
+                                <i class="fa fa-shopping-cart"/> Webshop Catalog
+                            </h2>
+                            <hr style="border-top: 2px solid #007bff;"/>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Tegel 1: Klaar voor publicatie -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-success h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-check-circle fa-2x text-success mb-1"/>
+                                    <h3 class="mb-1"><field name="products_ready"/></h3>
+                                    <small class="text-muted d-block mb-2">Klaar voor publicatie</small>
+                                    <button name="action_webshop_ready" 
+                                            type="object" 
+                                            class="btn btn-success btn-sm"
+                                            string="Bekijk"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 2: Mist hoofdafbeelding -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-warning h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-image fa-2x text-warning mb-1"/>
+                                    <h3 class="mb-1"><field name="products_missing_image"/></h3>
+                                    <small class="text-muted d-block mb-2">Mist hoofdafbeelding</small>
+                                    <button name="action_missing_image" 
+                                            type="object" 
+                                            class="btn btn-warning btn-sm"
+                                            string="Bekijk"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 3: Mist verkoopprijs -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-danger h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-euro fa-2x text-danger mb-1"/>
+                                    <h3 class="mb-1"><field name="products_high_margin"/></h3>
+                                    <small class="text-muted d-block mb-2">Mist verkoopprijs</small>
+                                    <button name="action_missing_price" 
+                                            type="object" 
+                                            class="btn btn-danger btn-sm"
+                                            string="Bekijk"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 4: Mist omschrijving -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-warning h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-align-left fa-2x text-warning mb-1"/>
+                                    <h3 class="mb-1"><field name="products_missing_description"/></h3>
+                                    <small class="text-muted d-block mb-2">Mist omschrijving</small>
+                                    <button name="action_missing_description" 
+                                            type="object" 
+                                            class="btn btn-warning btn-sm"
+                                            string="Bekijk"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 5: Mist EAN/barcode -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-warning h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-barcode fa-2x text-warning mb-1"/>
+                                    <h3 class="mb-1"><field name="products_missing_ean"/></h3>
+                                    <small class="text-muted d-block mb-2">Mist EAN/barcode</small>
+                                    <button name="action_missing_ean" 
+                                            type="object" 
+                                            class="btn btn-warning btn-sm"
+                                            string="Bekijk"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 6: Prijsdaling > 15% -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-info h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-line-chart fa-2x text-info mb-1"/>
+                                    <h3 class="mb-1"><field name="products_price_drop"/></h3>
+                                    <small class="text-muted d-block mb-2">Prijsdaling &gt; 15%</small>
+                                    <button name="action_price_drop" 
+                                            type="object" 
+                                            class="btn btn-info btn-sm"
+                                            string="Bekijk"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ============================================ -->
+                    <!-- SECTIE 2: SUPPLIER IMPORT                   -->
+                    <!-- ============================================ -->
+                    <div class="row mt-5">
+                        <div class="col-12">
+                            <h2 class="text-info">
+                                <i class="fa fa-truck"/> Supplier Import
+                            </h2>
+                            <hr style="border-top: 2px solid #17a2b8;"/>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Tegel 1: Direct Import -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-primary h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-upload fa-2x text-primary mb-1"/>
+                                    <h4 class="mb-1">Direct Import</h4>
+                                    <small class="text-muted d-block mb-2">Upload CSV</small>
+                                    <button name="action_direct_import" 
+                                            type="object" 
+                                            class="btn btn-primary"
+                                            string="Start Import"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 2: Import History -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-info h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-history fa-2x text-info mb-1"/>
+                                    <h3 class="mb-1"><field name="total_imports"/></h3>
+                                    <small class="text-muted d-block mb-2">Import History</small>
+                                    <button name="action_view_import_history" 
+                                            type="object" 
+                                            class="btn btn-info btn-sm"
+                                            string="Bekijk"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 3: Import Errors -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-danger h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-exclamation-triangle fa-2x text-danger mb-1"/>
+                                    <h3 class="mb-1"><field name="import_errors_count"/></h3>
+                                    <small class="text-muted d-block mb-2">Import Errors</small>
+                                    <button name="action_view_import_errors" 
+                                            type="object" 
+                                            class="btn btn-danger btn-sm"
+                                            string="Bekijk"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 4: Active Suppliers -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-warning h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-users fa-2x text-warning mb-1"/>
+                                    <h3 class="mb-1"><field name="active_suppliers"/></h3>
+                                    <small class="text-muted d-block mb-2">Active Suppliers</small>
+                                    <button name="action_manage_suppliers" 
+                                            type="object" 
+                                            class="btn btn-warning btn-sm"
+                                            string="Beheer"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 5: Scheduled Imports -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-success h-100" style="cursor: pointer;" 
+                                 onclick="this.querySelector('button').click()">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-clock-o fa-2x text-success mb-1"/>
+                                    <h3 class="mb-1"><field name="pending_schedules"/></h3>
+                                    <small class="text-muted d-block mb-2">Scheduled Imports</small>
+                                    <button name="action_view_schedules" 
+                                            type="object" 
+                                            class="btn btn-success btn-sm"
+                                            string="Beheer"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tegel 6: Volgende Import -->
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-2">
+                            <div class="card border-secondary h-100">
+                                <div class="card-body text-center p-2">
+                                    <i class="fa fa-calendar fa-2x text-secondary mb-1"/>
+                                    <small class="text-muted d-block mb-1">Volgende Import</small>
+                                    <field name="next_scheduled_import" widget="datetime"/>
+                                    <button name="action_view_schedules" 
+                                            type="object" 
+                                            class="btn btn-secondary btn-sm mt-2"
+                                            string="Planning"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ============================================ -->
+                    <!-- SECTIE 3: PRODUCT ENRICHMENT (toekomstig)  -->
+                    <!-- ============================================ -->
+                    <div class="row mt-5" invisible="True">
+                        <div class="col-12">
+                            <h2 class="text-warning">
+                                <i class="fa fa-magic"/> Product Verrijking
+                            </h2>
+                            <hr style="border-top: 2px solid #ffc107;"/>
+                        </div>
+                    </div>
+                    
+                    <!-- Placeholder voor toekomstige verrijking tegels -->
+                    <div class="row" invisible="True">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <strong>Binnenkort beschikbaar:</strong> Product verrijking functionaliteit
+                            </div>
+                        </div>
+                    </div>
+                    
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Action om dashboard te openen -->
+    <record id="action_product_central_dashboard" model="ir.actions.act_window">
+        <field name="name">Product Dashboard</field>
+        <field name="res_model">product.central.dashboard</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{}</field>
+    </record>
+    
+    <!-- Action met singleton record (zorg dat er altijd precies 1 record is) -->
+    <record id="product_central_dashboard_singleton" model="product.central.dashboard">
+        <field name="name">Product Dashboard</field>
+    </record>
+    
+</odoo>

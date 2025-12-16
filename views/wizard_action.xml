@@ -1,0 +1,7 @@
+<odoo>
+    <record id="action_smart_import_js" model="ir.actions.client">
+        <field name="name">🧠 Smart Import System</field>
+        <field name="tag">smart_import_js</field>
+        <field name="params">{}</field>
+    </record>
+</odoo>

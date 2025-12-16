@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Extend product.supplierinfo form view with extra fields -->
+    <record id="product_supplierinfo_form_view_inherit" model="ir.ui.view">
+        <field name="name">product.supplierinfo.form.inherit</field>
+        <field name="model">product.supplierinfo</field>
+        <field name="inherit_id" ref="product.product_supplierinfo_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='delay']" position="after">
+                <field name="supplier_stock" string="Voorraad Leverancier"/>  
+                <field name="supplier_sku" string="Leverancier SKU"/>
+                <field name="order_qty" string="Bestel Hoeveelheid"/>
+            </xpath>
+            <!-- Product identification fields voor CSV matching -->
+            <xpath expr="//field[@name='order_qty']" position="after">
+                <separator string="Product Identificatie (voor CSV matching)"/>
+                <field name="product_name" readonly="1"/>
+                <field name="product_barcode" readonly="1"/>
+                <field name="product_default_code" readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Extend product.supplierinfo tree view -->
+    <record id="product_supplierinfo_tree_view_inherit" model="ir.ui.view">
+        <field name="name">product.supplierinfo.tree.inherit</field>
+        <field name="model">product.supplierinfo</field>
+        <field name="inherit_id" ref="product.product_supplierinfo_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='price']" position="after">
+                <field name="supplier_stock" string="Voorraad Lev." optional="show"/>
+                <field name="order_qty" optional="hide"/>
+                <field name="supplier_sku" optional="hide"/>
+                <field name="product_name" optional="hide"/>
+                <field name="product_barcode" optional="hide"/>
+                <field name="product_default_code" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

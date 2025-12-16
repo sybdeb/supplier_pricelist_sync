@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Import History Tree View -->
+    <record id="view_import_history_tree" model="ir.ui.view">
+        <field name="name">supplier.import.history.tree</field>
+        <field name="model">supplier.import.history</field>
+        <field name="arch" type="xml">
+            <list string="Import History">
+                <field name="import_date"/>
+                <field name="supplier_id"/>
+                <field name="filename"/>
+                <field name="total_rows"/>
+                <field name="created_count"/>
+                <field name="updated_count"/>
+                <field name="skipped_count"/>
+                <field name="error_count"/>
+                <field name="state"/>
+                <field name="duration"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Import History Form View -->
+    <record id="view_import_history_form" model="ir.ui.view">
+        <field name="name">supplier.import.history.form</field>
+        <field name="model">supplier.import.history</field>
+        <field name="arch" type="xml">
+            <form string="Import Details">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="supplier_id"/>
+                            <field name="import_date"/>
+                            <field name="user_id"/>
+                        </group>
+                        <group>
+                            <field name="filename"/>
+                            <field name="duration"/>
+                        </group>
+                    </group>
+                    <group string="Statistics">
+                        <group>
+                            <field name="total_rows"/>
+                            <field name="created_count"/>
+                            <field name="updated_count"/>
+                        </group>
+                        <group>
+                            <field name="skipped_count"/>
+                            <field name="error_count"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Summary">
+                            <field name="summary" widget="text"/>
+                        </page>
+                        <page string="Errors" invisible="error_count == 0">
+                            <field name="error_line_ids">
+                                <list>
+                                    <field name="row_number"/>
+                                    <field name="error_type"/>
+                                    <field name="barcode"/>
+                                    <field name="product_code"/>
+                                    <field name="product_name"/>
+                                    <field name="resolved"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Import Errors Tree View -->
+    <record id="view_import_error_tree" model="ir.ui.view">
+        <field name="name">supplier.import.error.tree</field>
+        <field name="model">supplier.import.error</field>
+        <field name="arch" type="xml">
+            <list string="Import Errors - Products Not Found">
+                <field name="history_id"/>
+                <field name="row_number"/>
+                <field name="barcode"/>
+                <field name="product_code"/>
+                <field name="product_name"/>
+                <field name="error_message"/>
+                <field name="resolved"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Import Errors Form View -->
+    <record id="view_import_error_form" model="ir.ui.view">
+        <field name="name">supplier.import.error.form</field>
+        <field name="model">supplier.import.error</field>
+        <field name="arch" type="xml">
+            <form string="Import Error Details">
+                <header>
+                    <button name="action_mark_resolved" string="Mark as Resolved" type="object" 
+                            invisible="resolved == True"/>
+                    <field name="resolved" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="history_id"/>
+                            <field name="row_number"/>
+                            <field name="error_type"/>
+                        </group>
+                        <group>
+                            <field name="barcode"/>
+                            <field name="product_code"/>
+                            <field name="product_name"/>
+                        </group>
+                    </group>
+                    <group string="Error Details">
+                        <field name="error_message" widget="text"/>
+                    </group>
+                    <group string="CSV Data (voor product aanmaak)">
+                        <field name="csv_data" widget="text"/>
+                    </group>
+                    <group string="Resolution" invisible="resolved == False">
+                        <field name="resolved_date"/>
+                        <field name="resolved_by"/>
+                        <field name="notes"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="action_import_history" model="ir.actions.act_window">
+        <field name="name">Import History</field>
+        <field name="res_model">supplier.import.history</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_import_errors" model="ir.actions.act_window">
+        <field name="name">Import Errors - Products Not Found</field>
+        <field name="res_model">supplier.import.error</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('error_type', '=', 'product_not_found')]</field>
+        <field name="context">{'default_error_type': 'product_not_found'}</field>
+    </record>
+
+</odoo>

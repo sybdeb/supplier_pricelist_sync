@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_supplier_checkbox" model="ir.ui.view">
+        <field name="name">res.partner.form.supplier.checkbox</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='company_type']" position="after">
+                <label for="is_supplier_sync" string="Is Supplier"/>
+                <field name="is_supplier_sync" widget="boolean_toggle" nolabel="1"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

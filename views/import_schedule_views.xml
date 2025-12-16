@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- ========================================================================= -->
+    <!-- SCHEDULED IMPORT: LIST VIEW -->
+    <!-- ========================================================================= -->
+    
+    <record id="view_supplier_import_schedule_list" model="ir.ui.view">
+        <field name="name">supplier.import.schedule.list</field>
+        <field name="model">supplier.import.schedule</field>
+        <field name="arch" type="xml">
+            <list string="Scheduled Imports">
+                <field name="active" widget="boolean_toggle"/>
+                <field name="supplier_id"/>
+                <field name="name"/>
+                <field name="import_method"/>
+                <field name="schedule_type"/>
+                <field name="next_run"/>
+                <field name="last_run"/>
+                <field name="last_run_status" decoration-success="last_run_status == 'success'" 
+                       decoration-warning="last_run_status == 'warning'"
+                       decoration-danger="last_run_status == 'error'"/>
+                <field name="total_runs"/>
+                <field name="success_runs"/>
+                <field name="failed_runs"/>
+            </list>
+        </field>
+    </record>
+    
+    <!-- ========================================================================= -->
+    <!-- SCHEDULED IMPORT: FORM VIEW -->
+    <!-- ========================================================================= -->
+    
+    <record id="view_supplier_import_schedule_form" model="ir.ui.view">
+        <field name="name">supplier.import.schedule.form</field>
+        <field name="model">supplier.import.schedule</field>
+        <field name="arch" type="xml">
+            <form string="Scheduled Import">
+                <header>
+                    <button name="action_test_connection" type="object" string="Test Connection" 
+                            class="btn-primary" invisible="import_method == 'manual'"/>
+                    <button name="action_run_import_now" type="object" string="Run Import Now" 
+                            class="btn-success" invisible="not active"/>
+                    <button name="action_create_cron" type="object" string="Activate Scheduling" 
+                            class="btn-warning" invisible="schedule_type == 'manual' or cron_id"/>
+                    <button name="action_view_history" type="object" string="View Import History" 
+                            class="btn-secondary"/>
+                    <field name="last_run_status" widget="statusbar"/>
+                </header>
+                
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_history" type="object" class="oe_stat_button" icon="fa-history">
+                            <field name="total_runs" widget="statinfo" string="Total Runs"/>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-check-circle" invisible="success_runs == 0">
+                            <field name="success_runs" widget="statinfo" string="Successful"/>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-exclamation-circle" invisible="failed_runs == 0">
+                            <field name="failed_runs" widget="statinfo" string="Failed"/>
+                        </button>
+                    </div>
+                    
+                    <widget name="web_ribbon" title="Inactive" bg_color="bg-danger" invisible="active"/>
+                    
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Bijv. Dagelijkse prijsupdate Leverancier X"/>
+                        </h1>
+                    </div>
+                    
+                    <group>
+                        <group name="basic">
+                            <field name="supplier_id" options="{'no_create': True}"/>
+                            <field name="active" widget="boolean_toggle"/>
+                            <field name="import_method" widget="radio"/>
+                            <field name="mapping_template_id" 
+                                   invisible="import_method == 'manual'"
+                                   options="{'no_create': True}"/>
+                        </group>
+                        <group name="schedule_info">
+                            <field name="schedule_type" invisible="import_method == 'manual'"/>
+                            <field name="schedule_time" 
+                                   invisible="schedule_type not in ['daily', 'weekly', 'monthly']"
+                                   widget="float_time"/>
+                            <field name="schedule_day_of_week" 
+                                   invisible="schedule_type != 'weekly'"/>
+                            <field name="schedule_day_of_month" 
+                                   invisible="schedule_type != 'monthly'"/>
+                            <field name="cron_expression" 
+                                   invisible="schedule_type != 'custom'"/>
+                            <field name="cron_id" invisible="1"/>
+                            <field name="next_run" invisible="schedule_type == 'manual'"/>
+                        </group>
+                    </group>
+                    
+                    <notebook>
+                        <!-- FTP/SFTP Configuration -->
+                        <page string="FTP/SFTP Configuratie" name="ftp_config" 
+                              invisible="import_method != 'ftp'">
+                            <group>
+                                <group string="Server Instellingen">
+                                    <field name="use_sftp" widget="boolean_toggle"/>
+                                    <field name="ftp_host" placeholder="ftp.leverancier.nl"/>
+                                    <field name="ftp_port"/>
+                                    <field name="ftp_user"/>
+                                    <field name="ftp_password" password="True"/>
+                                </group>
+                                <group string="Bestand Locatie">
+                                    <field name="ftp_path" placeholder="/exports/"/>
+                                    <field name="ftp_filename_pattern" placeholder="pricelist_*.csv"/>
+                                </group>
+                            </group>
+                            <group>
+                                <div class="alert alert-info" role="alert">
+                                    <p><strong>FTP/SFTP Tips:</strong></p>
+                                    <ul>
+                                        <li>Gebruik altijd SFTP (Secure FTP) wanneer mogelijk</li>
+                                        <li>Test de verbinding voordat je scheduling activeert</li>
+                                        <li>Bestandspatronen: * = wildcard (bijv. pricelist_*.csv)</li>
+                                        <li>Nieuwste bestand wordt automatisch gekozen als meerdere matches</li>
+                                    </ul>
+                                </div>
+                            </group>
+                        </page>
+                        
+                        <!-- REST API Configuration -->
+                        <page string="API Configuratie" name="api_config" 
+                              invisible="import_method != 'api'">
+                            <group>
+                                <group string="Endpoint">
+                                    <field name="api_url" placeholder="https://api.leverancier.nl/v1/pricelist"/>
+                                    <field name="api_method"/>
+                                </group>
+                                <group string="Authenticatie">
+                                    <field name="api_auth_type"/>
+                                    <field name="api_username" 
+                                           invisible="api_auth_type != 'basic'"
+                                           placeholder="API gebruikersnaam"/>
+                                    <field name="api_password" 
+                                           invisible="api_auth_type != 'basic'"
+                                           password="True"/>
+                                    <field name="api_token" 
+                                           invisible="api_auth_type not in ['bearer', 'api_key']"
+                                           placeholder="API token/key"/>
+                                    <field name="api_token_header" 
+                                           invisible="api_auth_type not in ['bearer', 'api_key']"/>
+                                </group>
+                            </group>
+                            <group string="Extra Parameters">
+                                <field name="api_params" 
+                                       placeholder='{"format": "csv", "since": "2024-01-01"}'
+                                       widget="ace" options="{'mode': 'json'}"/>
+                            </group>
+                            <group>
+                                <div class="alert alert-info" role="alert">
+                                    <p><strong>API Tips:</strong></p>
+                                    <ul>
+                                        <li>Test eerst handmatig met tools als Postman/Insomnia</li>
+                                        <li>OAuth2 vereist mogelijk extra setup - vraag documentatie bij leverancier</li>
+                                        <li>Extra parameters in JSON format: {"key": "value"}</li>
+                                        <li>Response moet CSV of Excel formaat zijn</li>
+                                    </ul>
+                                </div>
+                            </group>
+                        </page>
+                        
+                        <!-- Email Configuration -->
+                        <page string="Email Configuratie" name="email_config" 
+                              invisible="import_method != 'email'">
+                            <group>
+                                <group string="Email Account">
+                                    <field name="email_server" placeholder="imap.gmail.com"/>
+                                    <field name="email_port"/>
+                                    <field name="email_use_ssl" widget="boolean_toggle"/>
+                                    <field name="email_user" placeholder="imports@bedrijf.nl"/>
+                                    <field name="email_password" password="True"/>
+                                </group>
+                                <group string="Email Filters">
+                                    <field name="email_folder" placeholder="INBOX"/>
+                                    <field name="email_subject_filter" placeholder="Prijslijst"/>
+                                    <field name="email_sender_filter" placeholder="exports@leverancier.nl"/>
+                                    <field name="email_attachment_pattern" placeholder="*.csv"/>
+                                    <field name="email_mark_as_read" widget="boolean_toggle"/>
+                                </group>
+                            </group>
+                            <group>
+                                <div class="alert alert-info" role="alert">
+                                    <p><strong>Email Tips:</strong></p>
+                                    <ul>
+                                        <li>Gmail vereist App-Specific Password (niet gewoon wachtwoord)</li>
+                                        <li>Outlook/Office365: imap-mail.outlook.com, poort 993</li>
+                                        <li>Filters zijn case-insensitive</li>
+                                        <li>Leeg laten = geen filter (alle emails)</li>
+                                        <li>Nieuwste matching email wordt verwerkt</li>
+                                    </ul>
+                                </div>
+                            </group>
+                        </page>
+                        
+                        <!-- File Processing -->
+                        <page string="Bestand Verwerking" name="file_processing">
+                            <group>
+                                <group string="CSV Instellingen">
+                                    <field name="csv_separator"/>
+                                    <field name="file_encoding"/>
+                                    <field name="has_headers" widget="boolean_toggle"/>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <!-- Import History & Stats -->
+                        <page string="Statistieken" name="statistics">
+                            <group>
+                                <group string="Laatste Run">
+                                    <field name="last_run"/>
+                                    <field name="last_run_status"/>
+                                </group>
+                                <group string="Totalen">
+                                    <field name="total_runs"/>
+                                    <field name="success_runs"/>
+                                    <field name="failed_runs"/>
+                                </group>
+                            </group>
+                            <group string="Laatste Run Details">
+                                <field name="last_run_message" nolabel="1" 
+                                       widget="text" placeholder="Nog geen imports uitgevoerd"/>
+                            </group>
+                            <separator string="Recente Imports"/>
+                            <field name="import_history_ids" nolabel="1" mode="list">
+                                <list limit="10">
+                                    <field name="import_date"/>
+                                    <field name="state"/>
+                                    <field name="total_rows"/>
+                                    <field name="created_count"/>
+                                    <field name="updated_count"/>
+                                    <field name="error_count"/>
+                                    <field name="duration" widget="float_time"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    
+    <!-- ========================================================================= -->
+    <!-- SCHEDULED IMPORT: KANBAN VIEW -->
+    <!-- ========================================================================= -->
+    
+    <record id="view_supplier_import_schedule_kanban" model="ir.ui.view">
+        <field name="name">supplier.import.schedule.kanban</field>
+        <field name="model">supplier.import.schedule</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile">
+                <field name="name"/>
+                <field name="supplier_id"/>
+                <field name="import_method"/>
+                <field name="schedule_type"/>
+                <field name="active"/>
+                <field name="last_run_status"/>
+                <field name="next_run"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_global_click">
+                            <div class="o_kanban_record_top">
+                                <div class="o_kanban_record_headings">
+                                    <strong class="o_kanban_record_title">
+                                        <field name="name"/>
+                                    </strong>
+                                    <div class="o_kanban_record_subtitle">
+                                        <field name="supplier_id"/>
+                                    </div>
+                                </div>
+                                <widget name="web_ribbon" title="Inactive" bg_color="bg-danger" invisible="active"/>
+                            </div>
+                            <div class="o_kanban_record_body">
+                                <div>Method: <field name="import_method"/></div>
+                                <div>Schedule: <field name="schedule_type"/></div>
+                                <div invisible="schedule_type == 'manual'">
+                                    Next: <field name="next_run" widget="datetime"/>
+                                </div>
+                            </div>
+                            <div class="o_kanban_record_bottom">
+                                <div class="oe_kanban_bottom_left">
+                                    <field name="last_run_status" widget="label_selection" 
+                                           options="{'classes': {'success': 'success', 'warning': 'warning', 'error': 'danger'}}"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+    
+    <!-- ========================================================================= -->
+    <!-- ACTIONS -->
+    <!-- ========================================================================= -->
+    
+    <record id="action_supplier_import_schedule" model="ir.actions.act_window">
+        <field name="name">Scheduled Imports</field>
+        <field name="res_model">supplier.import.schedule</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configureer automatische imports
+            </p>
+            <p>
+                Stel periodieke imports in via FTP/SFTP, REST API of Email.<br/>
+                Koppel een leverancier, kies import methode en planning.
+            </p>
+        </field>
+    </record>
+    
+</odoo>
