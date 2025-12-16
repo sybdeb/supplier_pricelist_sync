@@ -40,6 +40,7 @@ class ImportHistory(models.Model):
     
     # Status
     state = fields.Selection([
+        ('queued', 'In Wachtrij'),
         ('running', 'Running'),
         ('completed', 'Completed'),
         ('completed_with_errors', 'Completed with Errors'),

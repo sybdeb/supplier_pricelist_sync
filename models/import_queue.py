@@ -1,0 +1,159 @@
+# -*- coding: utf-8 -*-
+"""
+Import Queue - Background processing for large imports
+"""
+
+from odoo import models, fields, api
+import base64
+import csv
+import io
+import time
+import logging
+import ast
+
+_logger = logging.getLogger(__name__)
+
+
+class SupplierImportQueue(models.Model):
+    """Queue model for background import processing"""
+    _name = 'supplier.import.queue'
+    _description = 'Supplier Import Queue'
+    _order = 'create_date desc'
+    
+    history_id = fields.Many2one('supplier.import.history', string='Import History', required=True, ondelete='cascade')
+    supplier_id = fields.Many2one('res.partner', string='Supplier', required=True)
+    csv_file = fields.Binary(string='CSV File', required=True)
+    csv_filename = fields.Char(string='Filename')
+    encoding = fields.Char(string='Encoding', default='utf-8')
+    csv_separator = fields.Char(string='Separator', default=';')
+    mapping = fields.Text(string='Column Mapping', required=True)
+    state = fields.Selection([
+        ('queued', 'In Wachtrij'),
+        ('processing', 'Bezig'),
+        ('done', 'Voltooid'),
+        ('failed', 'Mislukt'),
+    ], string='Status', default='queued', required=True)
+    
+    @api.model
+    def _process_queue(self):
+        """
+        Cron job method: Process queued imports one by one
+        This method is called by the scheduled action
+        """
+        # Find next queued import
+        queue_item = self.search([('state', '=', 'queued')], limit=1, order='create_date asc')
+        
+        if not queue_item:
+            _logger.info("No queued imports to process")
+            return
+        
+        _logger.info(f"Processing queued import {queue_item.id} for supplier {queue_item.supplier_id.name}")
+        
+        try:
+            # Mark as processing
+            queue_item.state = 'processing'
+            queue_item.history_id.state = 'running'
+            self.env.cr.commit()
+            
+            # Execute import
+            queue_item._execute_queued_import()
+            
+            # Mark as done
+            queue_item.state = 'done'
+            self.env.cr.commit()
+            
+        except Exception as e:
+            _logger.error(f"Failed to process queued import {queue_item.id}: {e}", exc_info=True)
+            queue_item.state = 'failed'
+            queue_item.history_id.write({
+                'state': 'failed',
+                'summary': f"Background import failed: {str(e)}",
+            })
+            self.env.cr.commit()
+    
+    def _execute_queued_import(self):
+        """Execute the import from queue data"""
+        self.ensure_one()
+        
+        # Parse mapping from string
+        mapping = ast.literal_eval(self.mapping)
+        
+        start_time = time.time()
+        
+        try:
+            # Parse CSV
+            csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
+            csv_reader = csv.DictReader(io.StringIO(csv_data), delimiter=self.csv_separator)
+            
+            # Process rows
+            stats = {
+                'total': 0,
+                'created': 0,
+                'updated': 0,
+                'skipped': 0,
+                'errors': [],
+                'history_id': self.history_id.id
+            }
+            
+            # Batch processing
+            BATCH_SIZE = 500
+            batch_count = 0
+            
+            # Get direct import model for processing logic
+            DirectImport = self.env['supplier.direct.import']
+            
+            for row_num, row in enumerate(csv_reader, start=2):
+                stats['total'] += 1
+                
+                # Commit after each batch
+                if stats["total"] % BATCH_SIZE == 0:
+                    self.env.cr.commit()
+                    batch_count += 1
+                    _logger.info(f"Background import batch {batch_count} processed ({stats['total']} rows)")
+                
+                try:
+                    # Use DirectImport's _process_row method
+                    # Create temporary wizard instance with supplier context
+                    temp_wizard = DirectImport.create({
+                        'supplier_id': self.supplier_id.id,
+                        'csv_file': self.csv_file,
+                        'csv_filename': self.csv_filename,
+                    })
+                    temp_wizard._process_row(row, mapping, stats, row_num)
+                    temp_wizard.unlink()  # Clean up temp wizard
+                    
+                except Exception as e:
+                    error_msg = str(e)
+                    stats['errors'].append(f"Rij {row_num}: {error_msg}")
+                    stats['skipped'] += 1
+                    _logger.warning(f"Background import error on row {row_num}: {e}")
+            
+            # Calculate duration
+            duration = time.time() - start_time
+            
+            # Create summary
+            DirectImport = self.env['supplier.direct.import']
+            temp_wizard = DirectImport.create({
+                'supplier_id': self.supplier_id.id,
+                'csv_file': self.csv_file,
+            })
+            summary = temp_wizard._create_import_summary(stats)
+            temp_wizard.unlink()
+            
+            # Update history record
+            self.history_id.write({
+                'total_rows': stats['total'],
+                'created_count': stats['created'],
+                'updated_count': stats['updated'],
+                'skipped_count': stats['skipped'],
+                'error_count': len(stats['errors']),
+                'duration': duration,
+                'summary': summary,
+                'state': 'completed_with_errors' if stats['errors'] else 'completed',
+            })
+            
+            _logger.info(f"Background import completed: {stats['total']} rows processed, {stats['created']} created, {stats['updated']} updated")
+            
+        except Exception as e:
+            _logger.error(f"Background import failed: {e}", exc_info=True)
+            raise

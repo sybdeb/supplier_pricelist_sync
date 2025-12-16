@@ -206,8 +206,8 @@ class DirectImport(models.TransientModel):
     def action_import_data(self):
         """
         Voer de import uit met de geconfigureerde mapping
-        Voor grote imports (>1000 rijen): queue as background job via cron
-        Voor kleine imports: direct processing
+        Direct processing: CSV → Product lookup → Supplierinfo create/update
+        + Import History Logging
         """
         self.ensure_one()
         
@@ -235,49 +235,7 @@ class DirectImport(models.TransientModel):
         if not has_price:
             raise UserError("Mapping moet 'Price' bevatten (leveranciersprijs)")
         
-        # Check file size to determine if background processing is needed
-        csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
-        row_count = len(csv_data.split('\n')) - 1  # -1 for header
-        
-        # For large imports (>1000 rows), queue as background job
-        if row_count > 1000:
-            # Create history record in 'queued' state
-            history = self.env['supplier.import.history'].create({
-                'supplier_id': self.supplier_id.id,
-                'filename': self.csv_filename,
-                'state': 'queued',
-                'total_rows': row_count,
-            })
-            
-            # Store import data for background processing
-            self.env['supplier.import.queue'].create({
-                'history_id': history.id,
-                'csv_file': self.csv_file,
-                'csv_filename': self.csv_filename,
-                'supplier_id': self.supplier_id.id,
-                'encoding': self.encoding,
-                'csv_separator': self.csv_separator,
-                'mapping': str(mapping),  # Store as string (will eval() later)
-            })
-            
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Import in wachtrij',
-                    'message': f'Import van {row_count} rijen wordt in de achtergrond verwerkt. Check Import History voor status.',
-                    'type': 'info',
-                    'sticky': False,
-                }
-            }
-        
-        # For small imports: direct processing (original code)
-        return self._execute_import(mapping)
-    
-    def _execute_import(self, mapping):
-        """
-        Execute the actual import - used by both direct and background processing
-        """
+        # CREATE IMPORT HISTORY RECORD
         import time
         start_time = time.time()
         
@@ -302,17 +260,8 @@ class DirectImport(models.TransientModel):
                 'history_id': history.id  # Pass history ID for error logging
             }
             
-            # Batch processing: process in chunks of 500 rows
-            BATCH_SIZE = 500
-            batch_count = 0
-            
             for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header = 1)
                 stats['total'] += 1
-                # Commit after each batch to prevent timeout
-                if stats["total"] % BATCH_SIZE == 0:
-                    self.env.cr.commit()
-                    batch_count += 1
-                    _logger.info(f"Batch {batch_count} processed ({stats["total"]} rows)")
                 
                 try:
                     self._process_row(row, mapping, stats, row_num)

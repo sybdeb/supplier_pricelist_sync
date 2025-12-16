@@ -22,6 +22,7 @@ Built for Odoo 18 Community Edition
     "depends": ["base", "product", "purchase", "mail"],
     "data": [
         "security/ir.model.access.csv",
+        "data/import_queue_cron.xml",
         "views/dashboard_views.xml",
         "views/direct_import_views.xml",
         "views/import_history_views.xml",
