@@ -378,6 +378,11 @@ class DirectImport(models.TransientModel):
             
             # Get value from CSV row using csv_column as key
             value = row.get(csv_col, '').strip()
+            
+            # DEBUG: Log price field specifically
+            if 'price' in odoo_field.lower():
+                _logger.info(f"Processing price field: CSV col '{csv_col}' = '{value}' -> {odoo_field}")
+            
             if not value:
                 continue
             
@@ -389,6 +394,10 @@ class DirectImport(models.TransientModel):
             
             # Convert value based on field type
             converted_value = self._convert_field_value(model, field, value)
+            
+            # DEBUG: Log price field specifically after conversion
+            if 'price' in odoo_field.lower():
+                _logger.info(f"Converted price field: '{value}' -> {converted_value} (type: {type(converted_value)})")
             
             if model == 'product':
                 # Special handling for matching fields
@@ -481,8 +490,15 @@ class DirectImport(models.TransientModel):
             # Convert based on type
             if field.type == 'float':
                 # Handle decimal separators
-                value = string_value.replace(',', '.')
-                return float(value) if value else 0.0
+                cleaned_value = string_value.replace(',', '.')
+                _logger.info(f"Converting float: '{string_value}' -> cleaned: '{cleaned_value}'")
+                try:
+                    result = float(cleaned_value) if cleaned_value else 0.0
+                    _logger.info(f"Float conversion result: {result}")
+                    return result
+                except ValueError as e:
+                    _logger.error(f"Float conversion failed for '{string_value}': {e}")
+                    return 0.0
             
             elif field.type == 'integer':
                 return int(string_value) if string_value.isdigit() else 0
