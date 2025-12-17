@@ -340,6 +340,9 @@ class DirectImport(models.TransientModel):
             
             self.import_summary = summary
             
+            # AUTO-SAVE mapping as template for this supplier
+            self._auto_save_mapping_template(mapping)
+            
             # Close wizard and show notification
             return {
                 'type': 'ir.actions.act_window_close',
@@ -575,6 +578,41 @@ class DirectImport(models.TransientModel):
                 'sticky': False,
             }
         }
+    
+    def _auto_save_mapping_template(self, mapping):
+        """
+        Automatically save/update mapping template after successful import
+        Called at end of import to preserve mapping for next time
+        """
+        if not self.supplier_id or not mapping:
+            return
+        
+        # Check if template exists
+        template = self.env['supplier.mapping.template'].search([
+            ('supplier_id', '=', self.supplier_id.id)
+        ], limit=1)
+        
+        # Prepare mapping lines
+        line_vals = [(0, 0, {
+            'csv_column': csv_col,
+            'odoo_field': odoo_field,
+            'sequence': idx * 10,
+        }) for idx, (csv_col, odoo_field) in enumerate(mapping.items()) if odoo_field]
+        
+        if template:
+            # Update existing
+            template.write({
+                'mapping_line_ids': [(5, 0, 0)] + line_vals  # Clear + recreate
+            })
+            _logger.info(f"Auto-saved mapping template for {self.supplier_id.name}")
+        else:
+            # Create new
+            self.env['supplier.mapping.template'].create({
+                'supplier_id': self.supplier_id.id,
+                'name': f"Auto-saved for {self.supplier_id.name}",
+                'mapping_line_ids': line_vals
+            })
+            _logger.info(f"Created auto-save mapping template for {self.supplier_id.name}")
     
     def _load_template_if_exists(self):
         """Load mapping template if exists for supplier"""
