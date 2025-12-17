@@ -439,8 +439,9 @@ class DirectImport(models.TransientModel):
                 _logger.warning(f"Could not update product {product.default_code}: {e}")
         
         # STEP 3: Create/Update supplierinfo
-        if not supplierinfo_fields.get('price'):
-            raise ValidationError(f"Geen prijs gevonden voor product {product.default_code}")
+        price = supplierinfo_fields.get('price', 0.0)
+        if not price or price == 0.0:
+            raise ValidationError(f"Geen (geldige) prijs gevonden voor product {product.default_code}")
         
         # Search existing supplierinfo
         supplierinfo = self.env['product.supplierinfo'].search([
