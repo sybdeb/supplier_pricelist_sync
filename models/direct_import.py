@@ -408,6 +408,11 @@ class DirectImport(models.TransientModel):
         
         if not product:
             # LOG ERROR: Product niet gevonden
+            # Extract brand from product_fields (could be in various field names)
+            brand = product_fields.get('x_studio_merk', '') or \
+                    product_fields.get('product_brand_id', '') or \
+                    product_fields.get('brand', '') or ''
+            
             if stats.get('history_id'):
                 import json
                 self.env['supplier.import.error'].create({
@@ -417,6 +422,7 @@ class DirectImport(models.TransientModel):
                     'barcode': barcode or '',
                     'product_code': product_code or '',
                     'product_name': product_fields.get('name', ''),
+                    'brand': str(brand) if brand else '',
                     'csv_data': json.dumps(dict(row)),
                     'error_message': f"Product niet gevonden met EAN: {barcode}, SKU: {product_code}",
                 })

@@ -94,6 +94,7 @@ class ImportError(models.Model):
     barcode = fields.Char('EAN/Barcode')
     product_code = fields.Char('SKU/Product Code')
     product_name = fields.Char('Product Naam')
+    brand = fields.Char('Merk/Brand')
     
     # CSV data (voor product aanmaak)
     csv_data = fields.Text('CSV Row Data (JSON)')
