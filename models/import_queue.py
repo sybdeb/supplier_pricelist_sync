@@ -1,4 +1,4 @@
-waar# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Import Queue - Background processing for large imports
 """
