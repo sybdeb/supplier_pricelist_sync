@@ -196,6 +196,9 @@ class SupplierImportQueue(models.Model):
                 'state': 'completed_with_errors' if stats['errors'] else 'completed',
             })
             
+            # Update supplier's last sync date
+            self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
+            
             _logger.info(f"Background import completed: {stats['total']} rows processed, {stats['created']} created, {stats['updated']} updated")
             
         except Exception as e:
