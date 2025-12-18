@@ -46,7 +46,7 @@
         <field name="model">product.supplierinfo</field>
         <field name="inherit_id" ref="product.product_supplierinfo_search_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//filter[@name='group_supplier']" position="after">
+            <search position="inside">
                 <separator/>
                 <filter string="Gesynchroniseerd vandaag" name="synced_today" 
                         domain="[('last_sync_date', '&gt;=', (context_today()).strftime('%%Y-%%m-%%d 00:00:00'))]"/>
@@ -54,10 +54,10 @@
                         domain="[('last_sync_date', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%%Y-%%m-%%d 00:00:00'))]"/>
                 <filter string="Niet gesynchroniseerd" name="never_synced" 
                         domain="[('last_sync_date', '=', False)]"/>
-            </xpath>
-            <xpath expr="//group[@expand='0']" position="inside">
-                <filter string="Sync Datum" name="group_sync_date" context="{'group_by': 'last_sync_date:day'}"/>
-            </xpath>
+                <group expand="0" string="Groepeer op">
+                    <filter string="Sync Datum" name="group_sync_date" context="{'group_by': 'last_sync_date:day'}"/>
+                </group>
+            </search>
         </field>
     </record>
 </odoo>
