@@ -40,6 +40,33 @@ class SupplierImportQueue(models.Model):
         Cron job method: Process queued imports one by one
         This method is called by the scheduled action
         """
+        # Check if there's already an import being processed
+        processing_items = self.search([('state', '=', 'processing')])
+        
+        # Check for stuck imports (no batch progress for more than 1 hour)
+        # Uses history write_date which is updated every batch (500 rows)
+        if processing_items:
+            from datetime import datetime, timedelta
+            one_hour_ago = fields.Datetime.now() - timedelta(hours=1)
+            stuck_items = processing_items.filtered(
+                lambda i: i.history_id and i.history_id.write_date and i.history_id.write_date < one_hour_ago
+            )
+            
+            if stuck_items:
+                _logger.warning(f'Found {len(stuck_items)} stuck import(s) (no batch progress >1h), marking as failed: {stuck_items.ids}')
+                for item in stuck_items:
+                    item.write({'state': 'failed'})
+                    item.history_id.write({
+                        'state': 'failed',
+                        'summary': 'Import timeout: No batch progress for more than 1 hour (mogelijk vastgelopen)'
+                    })
+                # Refresh processing_items list
+                processing_items = self.search([('state', '=', 'processing')])
+        
+        if processing_items:
+            _logger.info(f'{len(processing_items)} import(s) already processing, waiting... Import IDs: {processing_items.ids}')
+            return
+        
         # Find next queued import
         queue_item = self.search([('state', '=', 'queued')], limit=1, order='create_date asc')
         
@@ -105,12 +132,6 @@ class SupplierImportQueue(models.Model):
             for row_num, row in enumerate(csv_reader, start=2):
                 stats['total'] += 1
                 
-                # Commit after each batch
-                if stats["total"] % BATCH_SIZE == 0:
-                    self.env.cr.commit()
-                    batch_count += 1
-                    _logger.info(f"Background import batch {batch_count} processed ({stats['total']} rows)")
-                
                 try:
                     # Use DirectImport's _process_row method
                     # Create temporary wizard instance with supplier context
@@ -127,6 +148,25 @@ class SupplierImportQueue(models.Model):
                     stats['errors'].append(f"Rij {row_num}: {error_msg}")
                     stats['skipped'] += 1
                     _logger.warning(f"Background import error on row {row_num}: {e}")
+                
+                # Commit after each batch
+                if stats["total"] % BATCH_SIZE == 0:
+                    batch_count += 1
+                    
+                    # Update history with current progress
+                    self.history_id.write({
+                        'total_rows': stats['total'],
+                        'created_count': stats['created'],
+                        'updated_count': stats['updated'],
+                        'skipped_count': stats['skipped'],
+                        'error_count': len(stats['errors']),
+                        'duration': time.time() - start_time,
+                        'summary': f"Processing... {stats['total']} rows processed so far ({stats['created']} created, {stats['updated']} updated, {stats['skipped']} skipped, {len(stats['errors'])} errors)",
+                        'state': 'running',
+                    })
+                    self.env.cr.commit()
+                    
+                    _logger.info(f"Background import batch {batch_count} committed ({stats['total']} rows, {stats['created']} created, {stats['skipped']} skipped)")
             
             # Calculate duration
             duration = time.time() - start_time
@@ -138,6 +178,10 @@ class SupplierImportQueue(models.Model):
                 'csv_file': self.csv_file,
             })
             summary = temp_wizard._create_import_summary(stats)
+            
+            # AUTO-SAVE mapping template (same as direct import)
+            temp_wizard._auto_save_mapping_template(mapping)
+            
             temp_wizard.unlink()
             
             # Update history record

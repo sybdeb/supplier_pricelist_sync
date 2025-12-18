@@ -101,11 +101,35 @@ class DirectImport(models.TransientModel):
             mapping_vals = []
             first_row = data_rows[0]
             
+            # Check if template exists for this supplier
+            template = None
+            already_mapped_fields = set()  # Track which Odoo fields are already mapped
+            
+            if self.supplier_id:
+                template = self.env['supplier.mapping.template'].search([
+                    ('supplier_id', '=', self.supplier_id.id)
+                ], limit=1)
+            
             for idx, header in enumerate(headers):
                 sample = first_row[idx] if idx < len(first_row) else ''
                 
-                # Auto-detect Odoo field
-                odoo_field = self._auto_detect_field(header, sample)
+                # Try to get mapping from template first
+                odoo_field = False
+                if template and template.mapping_line_ids:
+                    template_line = template.mapping_line_ids.filtered(lambda l: l.csv_column == header)
+                    if template_line:
+                        odoo_field = template_line[0].odoo_field
+                        already_mapped_fields.add(odoo_field)  # Mark this field as used
+                        _logger.info(f"Loaded mapping from template: {header} -> {odoo_field}")
+                
+                # If no template mapping found, auto-detect (but not if field is already mapped)
+                if not odoo_field:
+                    auto_detected = self._auto_detect_field(header, sample)
+                    # Only use auto-detected field if it's not already mapped from template
+                    if auto_detected and auto_detected not in already_mapped_fields:
+                        odoo_field = auto_detected
+                        already_mapped_fields.add(odoo_field)  # Mark as used
+                    # If already mapped, leave empty (no duplicate mapping)
                 
                 mapping_vals.append((0, 0, {
                     'csv_column': header,
@@ -148,8 +172,13 @@ class DirectImport(models.TransientModel):
             return 'product.default_code'
         
         # === SUPPLIERINFO FIELDS (leverancier-specifieke data) ===
-        if col_lower in ['prijs', 'price', 'unitprice', 'cost', 'inkoopprijs', 'prijs_incl_heffing']:
+        # Match more specific names first to avoid "prijs" matching when "prijs_incl_heffingen" exists
+        if col_lower in ['prijs_incl_heffing', 'prijs_incl_heffingen', 'price_incl_tax', 'inkoopprijs_incl', 
+                         'unitprice', 'cost', 'price']:
             return 'supplierinfo.price'
+        
+        # Skip generic "prijs" to avoid conflicts with more specific price columns
+        # User can manually map if needed
         
         # VOORRAAD LEVERANCIER (stock at supplier)
         if col_lower in ['voorraad', 'voorraad_leverancier', 'supplier_stock', 'stock_supplier']:
@@ -313,6 +342,19 @@ class DirectImport(models.TransientModel):
                     self.env.cr.commit()
                     batch_count += 1
                     _logger.info(f"Batch {batch_count} processed ({stats["total"]} rows)")
+                    
+                    # Update history with current progress
+                    history.write({
+                        'total_rows': stats['total'],
+                        'created_count': stats['created'],
+                        'updated_count': stats['updated'],
+                        'skipped_count': stats['skipped'],
+                        'error_count': len(stats['errors']),
+                        'duration': time.time() - start_time,
+                        'summary': f"Processing... {stats['total']} rows processed so far ({stats['created']} created, {stats['updated']} updated, {stats['skipped']} skipped, {len(stats['errors'])} errors)",
+                        'state': 'running',
+                    })
+                    self.env.cr.commit()
                 
                 try:
                     self._process_row(row, mapping, stats, row_num)

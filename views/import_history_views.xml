@@ -101,8 +101,8 @@
             <form string="Import Error Details">
                 <header>
                     <button name="action_mark_resolved" string="Mark as Resolved" type="object" 
-                            invisible="resolved == True"/>
-                    <field name="resolved" widget="statusbar"/>
+                            invisible="resolved == True" class="btn-primary"/>
+                    <field name="resolved" widget="boolean_button" options="{'terminology': 'active'}"/>
                 </header>
                 <sheet>
                     <group>
