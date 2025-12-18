@@ -144,10 +144,10 @@ class SupplierImportQueue(models.Model):
                     temp_wizard.unlink()  # Clean up temp wizard
                     
                 except Exception as e:
-                    error_msg = str(e)
+                    error_msg = str(e) if str(e) else f"{type(e).__name__} (geen error message)"
                     stats['errors'].append(f"Rij {row_num}: {error_msg}")
                     stats['skipped'] += 1
-                    _logger.warning(f"Background import error on row {row_num}: {e}")
+                    _logger.error(f"Background import error on row {row_num}: {error_msg}", exc_info=True)
                 
                 # Commit after each batch
                 if stats["total"] % BATCH_SIZE == 0:
