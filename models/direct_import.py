@@ -380,8 +380,9 @@ class DirectImport(models.TransientModel):
                 'state': 'completed_with_errors' if stats['errors'] else 'completed',
             })
             
-            # Update supplier's last sync date
-            self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
+            # Update supplier's last sync date (if field exists)
+            if 'last_sync_date' in self.supplier_id._fields:
+                self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
             
             self.import_summary = summary
             
