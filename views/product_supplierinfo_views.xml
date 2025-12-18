@@ -10,6 +10,7 @@
                 <field name="supplier_stock" string="Voorraad Leverancier"/>  
                 <field name="supplier_sku" string="Leverancier SKU"/>
                 <field name="order_qty" string="Bestel Hoeveelheid"/>
+                <field name="last_sync_date" string="Laatste Import" readonly="1"/>
             </xpath>
             <!-- Product identification fields voor CSV matching -->
             <xpath expr="//field[@name='order_qty']" position="after">
@@ -31,9 +32,31 @@
                 <field name="supplier_stock" string="Voorraad Lev." optional="show"/>
                 <field name="order_qty" optional="hide"/>
                 <field name="supplier_sku" optional="hide"/>
+                <field name="last_sync_date" string="Laatste Import" optional="show"/>
                 <field name="product_name" optional="hide"/>
                 <field name="product_barcode" optional="hide"/>
                 <field name="product_default_code" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Add search view with sync filters -->
+    <record id="product_supplierinfo_search_view_inherit" model="ir.ui.view">
+        <field name="name">product.supplierinfo.search.inherit</field>
+        <field name="model">product.supplierinfo</field>
+        <field name="inherit_id" ref="product.product_supplierinfo_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='group_supplier']" position="after">
+                <separator/>
+                <filter string="Gesynchroniseerd vandaag" name="synced_today" 
+                        domain="[('last_sync_date', '&gt;=', (context_today()).strftime('%%Y-%%m-%%d 00:00:00'))]"/>
+                <filter string="Gesynchroniseerd deze week" name="synced_week" 
+                        domain="[('last_sync_date', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%%Y-%%m-%%d 00:00:00'))]"/>
+                <filter string="Niet gesynchroniseerd" name="never_synced" 
+                        domain="[('last_sync_date', '=', False)]"/>
+            </xpath>
+            <xpath expr="//group[@expand='0']" position="inside">
+                <filter string="Sync Datum" name="group_sync_date" context="{'group_by': 'last_sync_date:day'}"/>
             </xpath>
         </field>
     </record>

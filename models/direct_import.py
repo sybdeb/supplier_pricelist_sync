@@ -504,6 +504,7 @@ class DirectImport(models.TransientModel):
         vals = {
             'partner_id': self.supplier_id.id,
             'product_tmpl_id': product.product_tmpl_id.id,
+            'last_sync_date': fields.Datetime.now(),  # Track import date
             **supplierinfo_fields
         }
         

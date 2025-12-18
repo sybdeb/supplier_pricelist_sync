@@ -14,6 +14,13 @@ class ProductSupplierinfo(models.Model):
     supplier_stock = fields.Float('Voorraad Lev.', default=0.0, help="Current stock at supplier")  
     supplier_sku = fields.Char('Art.nr Lev.', help="Supplier's internal SKU/article number")
     
+    # Import tracking
+    last_sync_date = fields.Datetime(
+        'Laatste Sync', 
+        help="Datum van laatste import/update vanuit leverancier CSV",
+        readonly=True
+    )
+    
     # Product identification fields - inherited from product voor Smart Import matching
     product_name = fields.Char('Product Naam', 
                               related='product_tmpl_id.name', 
