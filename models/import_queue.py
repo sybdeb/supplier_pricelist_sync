@@ -196,12 +196,12 @@ class SupplierImportQueue(models.Model):
                 'state': 'completed_with_errors' if stats['errors'] else 'completed',
             })
             
-            # Update supplier's last sync date (if field exists)
-            if 'last_sync_date' in self.supplier_id._fields:
+            # Update supplier's last sync date
+            try:
                 self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
                 _logger.info(f"Updated supplier {self.supplier_id.name} last_sync_date")
-            else:
-                _logger.warning(f"Field 'last_sync_date' not found in res.partner fields: {list(self.supplier_id._fields.keys())[:10]}")
+            except Exception as e:
+                _logger.warning(f"Could not update supplier last_sync_date: {e}")
             
             _logger.info(f"Background import completed: {stats['total']} rows processed, {stats['created']} created, {stats['updated']} updated")
             
