@@ -197,11 +197,15 @@ class SupplierImportQueue(models.Model):
             })
             
             # Update supplier's last sync date
+            _logger.info(f"Attempting to update supplier {self.supplier_id.name} (ID: {self.supplier_id.id}) last_sync_date")
+            _logger.info(f"Supplier fields available: {list(self.supplier_id._fields.keys())[:20]}")  # First 20 fields
             try:
-                self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
-                _logger.info(f"Updated supplier {self.supplier_id.name} last_sync_date")
+                sync_time = fields.Datetime.now()
+                _logger.info(f"Writing last_sync_date: {sync_time}")
+                self.supplier_id.write({'last_sync_date': sync_time})
+                _logger.info(f"✓ Successfully updated supplier {self.supplier_id.name} last_sync_date to {sync_time}")
             except Exception as e:
-                _logger.warning(f"Could not update supplier last_sync_date: {e}")
+                _logger.error(f"✗ Failed to update supplier last_sync_date: {e}", exc_info=True)
             
             _logger.info(f"Background import completed: {stats['total']} rows processed, {stats['created']} created, {stats['updated']} updated")
             
