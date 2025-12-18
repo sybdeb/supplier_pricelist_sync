@@ -500,6 +500,13 @@ class DirectImport(models.TransientModel):
         if not price or price == 0.0:
             raise ValidationError(f"Geen (geldige) prijs gevonden voor product {product.default_code}")
         
+        # STEP 3.1: Auto-reactivate archived products
+        if not product.active or not product.product_tmpl_id.active:
+            _logger.info(f"De-archivering product {product.default_code} (was gearchiveerd, nu weer in import)")
+            product.write({'active': True})
+            if not product.product_tmpl_id.active:
+                product.product_tmpl_id.write({'active': True})
+        
         # Search existing supplierinfo
         supplierinfo = self.env['product.supplierinfo'].search([
             ('product_tmpl_id', '=', product.product_tmpl_id.id),
