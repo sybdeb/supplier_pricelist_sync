@@ -199,6 +199,9 @@ class SupplierImportQueue(models.Model):
             # Update supplier's last sync date (if field exists)
             if 'last_sync_date' in self.supplier_id._fields:
                 self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
+                _logger.info(f"Updated supplier {self.supplier_id.name} last_sync_date")
+            else:
+                _logger.warning(f"Field 'last_sync_date' not found in res.partner fields: {list(self.supplier_id._fields.keys())[:10]}")
             
             _logger.info(f"Background import completed: {stats['total']} rows processed, {stats['created']} created, {stats['updated']} updated")
             
