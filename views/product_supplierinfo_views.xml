@@ -39,25 +39,4 @@
             </xpath>
         </field>
     </record>
-    
-    <!-- Add search view with sync filters -->
-    <record id="product_supplierinfo_search_view_inherit" model="ir.ui.view">
-        <field name="name">product.supplierinfo.search.inherit</field>
-        <field name="model">product.supplierinfo</field>
-        <field name="inherit_id" ref="product.product_supplierinfo_search_view"/>
-        <field name="arch" type="xml">
-            <search position="inside">
-                <separator/>
-                <filter string="Gesynchroniseerd vandaag" name="synced_today" 
-                        domain="[('last_sync_date', '&gt;=', (context_today()).strftime('%%Y-%%m-%%d 00:00:00'))]"/>
-                <filter string="Gesynchroniseerd deze week" name="synced_week" 
-                        domain="[('last_sync_date', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%%Y-%%m-%%d 00:00:00'))]"/>
-                <filter string="Niet gesynchroniseerd" name="never_synced" 
-                        domain="[('last_sync_date', '=', False)]"/>
-                <group expand="0" string="Groepeer op">
-                    <filter string="Sync Datum" name="group_sync_date" context="{'group_by': 'last_sync_date:day'}"/>
-                </group>
-            </search>
-        </field>
-    </record>
 </odoo>
