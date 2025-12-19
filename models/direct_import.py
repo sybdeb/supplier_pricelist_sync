@@ -459,9 +459,11 @@ class DirectImport(models.TransientModel):
                 supplierinfo_fields[field] = converted_value
         
         # STEP 1: Product lookup (priority: barcode > product_code)
+        _logger.info(f"Row {row_num}: Looking up product - barcode='{barcode}', product_code='{product_code}'")
         product = None
         if barcode:
             product = self.env['product.product'].search([('barcode', '=', barcode)], limit=1)
+            _logger.info(f"Row {row_num}: Barcode search for '{barcode}' found: {product.id if product else 'None'}")
         
         if not product and product_code:
             product = self.env['product.product'].search([('default_code', '=', product_code)], limit=1)
