@@ -459,14 +459,15 @@ class DirectImport(models.TransientModel):
                 supplierinfo_fields[field] = converted_value
         
         # STEP 1: Product lookup (priority: barcode > product_code)
+        # BELANGRIJK: active_test=False zodat we ook gearchiveerde producten vinden en kunnen reactiveren!
         _logger.info(f"Row {row_num}: Looking up product - barcode='{barcode}', product_code='{product_code}'")
         product = None
         if barcode:
-            product = self.env['product.product'].search([('barcode', '=', barcode)], limit=1)
-            _logger.info(f"Row {row_num}: Barcode search for '{barcode}' found: {product.id if product else 'None'}")
+            product = self.env['product.product'].with_context(active_test=False).search([('barcode', '=', barcode)], limit=1)
+            _logger.info(f"Row {row_num}: Barcode search for '{barcode}' found: {product.id if product else 'None'} (active={product.active if product else 'N/A'})")
         
         if not product and product_code:
-            product = self.env['product.product'].search([('default_code', '=', product_code)], limit=1)
+            product = self.env['product.product'].with_context(active_test=False).search([('default_code', '=', product_code)], limit=1)
         
         if not product:
             # LOG ERROR: Product niet gevonden
@@ -509,8 +510,8 @@ class DirectImport(models.TransientModel):
             if not product.product_tmpl_id.active:
                 product.product_tmpl_id.write({'active': True})
         
-        # Search existing supplierinfo
-        supplierinfo = self.env['product.supplierinfo'].search([
+        # Search existing supplierinfo (ook voor gearchiveerde producten)
+        supplierinfo = self.env['product.supplierinfo'].with_context(active_test=False).search([
             ('product_tmpl_id', '=', product.product_tmpl_id.id),
             ('partner_id', '=', self.supplier_id.id)
         ], limit=1)
