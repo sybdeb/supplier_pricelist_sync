@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree view voor Import Queue -->
+    <record id="view_supplier_import_queue_tree" model="ir.ui.view">
+        <field name="name">supplier.import.queue.tree</field>
+        <field name="model">supplier.import.queue</field>
+        <field name="arch" type="xml">
+            <tree string="Import Wachtrij" decoration-info="state=='queued'" decoration-warning="state=='processing'" decoration-success="state=='done'" decoration-danger="state=='failed'">
+                <field name="id"/>
+                <field name="create_date" string="Aangemaakt"/>
+                <field name="supplier_id"/>
+                <field name="csv_filename"/>
+                <field name="state"/>
+                <field name="history_id" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form view voor Import Queue -->
+    <record id="view_supplier_import_queue_form" model="ir.ui.view">
+        <field name="name">supplier.import.queue.form</field>
+        <field name="model">supplier.import.queue</field>
+        <field name="arch" type="xml">
+            <form string="Import Queue Item">
+                <header>
+                    <button name="action_requeue" string="Terug naar Wachtrij" type="object" 
+                            class="btn-warning" invisible="state not in ['processing', 'failed']"/>
+                    <button name="action_mark_failed" string="Markeer als Mislukt" type="object" 
+                            class="btn-danger" invisible="state not in ['processing', 'queued']" 
+                            confirm="Weet je zeker dat je deze import als mislukt wilt markeren?"/>
+                    <field name="state" widget="statusbar" statusbar_visible="queued,processing,done"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="id"/>
+                            <field name="supplier_id"/>
+                            <field name="csv_filename"/>
+                            <field name="encoding"/>
+                            <field name="csv_separator"/>
+                        </group>
+                        <group>
+                            <field name="create_date"/>
+                            <field name="write_date"/>
+                            <field name="history_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Mapping">
+                            <field name="mapping" widget="text"/>
+                        </page>
+                        <page string="CSV File">
+                            <field name="csv_file" filename="csv_filename"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action voor Import Queue -->
+    <record id="action_supplier_import_queue" model="ir.actions.act_window">
+        <field name="name">Import Wachtrij</field>
+        <field name="res_model">supplier.import.queue</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Geen imports in de wachtrij
+            </p>
+            <p>
+                Hier zie je alle imports die in de achtergrond worden verwerkt.
+                Je kunt vastgelopen imports handmatig terugzetten naar de wachtrij of als mislukt markeren.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu item -->
+    <menuitem id="menu_supplier_import_queue"
+              name="Import Wachtrij"
+              parent="menu_imports"
+              action="action_supplier_import_queue"
+              sequence="15"/>
+</odoo>

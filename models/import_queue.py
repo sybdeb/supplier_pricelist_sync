@@ -40,8 +40,12 @@ class SupplierImportQueue(models.Model):
         Cron job method: Process queued imports one by one
         This method is called by the scheduled action
         """
+        _logger.info('='*60)
+        _logger.info('CRON: _process_queue started')
+        
         # Check if there's already an import being processed
         processing_items = self.search([('state', '=', 'processing')])
+        _logger.info(f'CRON: Found {len(processing_items)} processing imports: {processing_items.ids}')
         
         # Check for stuck imports (no batch progress for more than 15 minutes)
         # Uses history write_date which is updated every batch (500 rows)
@@ -49,6 +53,13 @@ class SupplierImportQueue(models.Model):
         if processing_items:
             from datetime import datetime, timedelta
             fifteen_mins_ago = fields.Datetime.now() - timedelta(minutes=15)
+            _logger.info(f'CRON: Checking for stuck imports (threshold: {fifteen_mins_ago})')
+            
+            for item in processing_items:
+                history_write = item.history_id.write_date if item.history_id else None
+                _logger.info(f'  Import {item.id}: history={item.history_id.id if item.history_id else None}, '
+                            f'last_write={history_write}, stuck={history_write < fifteen_mins_ago if history_write else "N/A"}')
+            
             stuck_items = processing_items.filtered(
                 lambda i: i.history_id and i.history_id.write_date and i.history_id.write_date < fifteen_mins_ago
             )
@@ -78,6 +89,8 @@ class SupplierImportQueue(models.Model):
                         })
                 # Refresh processing_items list
                 processing_items = self.search([('state', '=', 'processing')])
+            else:
+                _logger.info(f'CRON: No stuck imports found (all {len(processing_items)} are progressing normally)')
         
         if processing_items:
             _logger.info(f'{len(processing_items)} import(s) already processing, waiting... Import IDs: {processing_items.ids}')
@@ -87,10 +100,12 @@ class SupplierImportQueue(models.Model):
         queue_item = self.search([('state', '=', 'queued')], limit=1, order='create_date asc')
         
         if not queue_item:
-            _logger.info("No queued imports to process")
+            _logger.info("CRON: No queued imports to process")
+            _logger.info('='*60)
             return
         
-        _logger.info(f"Processing queued import {queue_item.id} for supplier {queue_item.supplier_id.name}")
+        _logger.info(f"CRON: Processing queued import {queue_item.id} for supplier {queue_item.supplier_id.name}")
+        _logger.info('='*60)
         
         try:
             # Mark as processing
@@ -222,3 +237,47 @@ class SupplierImportQueue(models.Model):
         except Exception as e:
             _logger.error(f"Background import failed: {e}", exc_info=True)
             raise
+    
+    def action_requeue(self):
+        """Manual action to reset stuck import back to queued state"""
+        for record in self:
+            if record.state in ['processing', 'failed']:
+                _logger.warning(f'MANUAL: User resetting import {record.id} from {record.state} to queued')
+                record.write({'state': 'queued'})
+                if record.history_id:
+                    record.history_id.write({
+                        'state': 'pending',
+                        'summary': f'Handmatig teruggezet naar wachtrij vanuit status {record.state}'
+                    })
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Import teruggezet',
+                        'message': f'Import {record.id} is teruggezet naar wachtrij',
+                        'type': 'success',
+                        'sticky': False,
+                    }
+                }
+    
+    def action_mark_failed(self):
+        """Manual action to mark import as permanently failed"""
+        for record in self:
+            if record.state in ['processing', 'queued']:
+                _logger.warning(f'MANUAL: User marking import {record.id} as failed')
+                record.write({'state': 'failed'})
+                if record.history_id:
+                    record.history_id.write({
+                        'state': 'failed',
+                        'summary': 'Handmatig gemarkeerd als mislukt'
+                    })
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Import mislukt gemarkeerd',
+                        'message': f'Import {record.id} is gemarkeerd als mislukt',
+                        'type': 'warning',
+                        'sticky': False,
+                    }
+                }

@@ -27,6 +27,7 @@ Built for Odoo 18 Community Edition
         "views/direct_import_views.xml",
         "views/import_history_views.xml",
         "views/import_schedule_views.xml",
+        "views/import_queue_views.xml",
         "views/supplier_mapping_template_views.xml",
         "views/product_supplierinfo_views.xml",
         "views/product_template_views.xml",
