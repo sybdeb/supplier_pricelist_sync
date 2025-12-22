@@ -12,6 +12,13 @@ class ProductSupplierinfo(models.Model):
     # Override existing field label
     price = fields.Float('Ink.Prijs', help="Purchase price from this supplier")
     
+    # Activering field voor EOL tracking (standaard niet aanwezig op product.supplierinfo)
+    active = fields.Boolean(
+        'Actief',
+        default=True,
+        help="Als False, is dit product EOL bij deze leverancier (niet meer in laatste import)"
+    )
+    
     # Extra supplier fields voor CSV import
     order_qty = fields.Float('Bestel Aantal', default=0.0, help="Minimum order quantity from supplier")
     supplier_stock = fields.Float('Voorraad Lev.', default=0.0, help="Current stock at supplier")  
