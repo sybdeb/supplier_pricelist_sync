@@ -43,23 +43,39 @@ class SupplierImportQueue(models.Model):
         # Check if there's already an import being processed
         processing_items = self.search([('state', '=', 'processing')])
         
-        # Check for stuck imports (no batch progress for more than 1 hour)
+        # Check for stuck imports (no batch progress for more than 15 minutes)
         # Uses history write_date which is updated every batch (500 rows)
+        # Kortere timeout = snellere recovery na server restart
         if processing_items:
             from datetime import datetime, timedelta
-            one_hour_ago = fields.Datetime.now() - timedelta(hours=1)
+            fifteen_mins_ago = fields.Datetime.now() - timedelta(minutes=15)
             stuck_items = processing_items.filtered(
-                lambda i: i.history_id and i.history_id.write_date and i.history_id.write_date < one_hour_ago
+                lambda i: i.history_id and i.history_id.write_date and i.history_id.write_date < fifteen_mins_ago
             )
             
             if stuck_items:
-                _logger.warning(f'Found {len(stuck_items)} stuck import(s) (no batch progress >1h), marking as failed: {stuck_items.ids}')
+                _logger.warning(f'Found {len(stuck_items)} stuck import(s) (no progress >15min), attempting recovery: {stuck_items.ids}')
                 for item in stuck_items:
-                    item.write({'state': 'failed'})
-                    item.history_id.write({
-                        'state': 'failed',
-                        'summary': 'Import timeout: No batch progress for more than 1 hour (mogelijk vastgelopen)'
-                    })
+                    # Check if we should retry or fail
+                    retry_count = item.history_id.retry_count or 0
+                    
+                    if retry_count < 3:
+                        # Reset to queued for retry
+                        _logger.info(f'Retry {retry_count + 1}/3 for import {item.id}')
+                        item.write({'state': 'queued'})
+                        item.history_id.write({
+                            'state': 'pending',
+                            'retry_count': retry_count + 1,
+                            'summary': f'Import restarted na timeout (poging {retry_count + 1}/3)'
+                        })
+                    else:
+                        # Failed after 3 retries
+                        _logger.error(f'Import {item.id} failed after 3 retries')
+                        item.write({'state': 'failed'})
+                        item.history_id.write({
+                            'state': 'failed',
+                            'summary': 'Import gefaald na 3 pogingen (server restarts of timeout)'
+                        })
                 # Refresh processing_items list
                 processing_items = self.search([('state', '=', 'processing')])
         
@@ -85,8 +101,16 @@ class SupplierImportQueue(models.Model):
             # Execute import
             queue_item._execute_queued_import()
             
-            # Mark as done
+            # Mark as done - alleen nu last_sync_date updaten bij succesvolle import!
             queue_item.state = 'done'
+            
+            # Update supplier last sync date ALLEEN bij succesvolle import
+            if queue_item.supplier_id:
+                queue_item.supplier_id.sudo().write({
+                    'last_sync_date': fields.Datetime.now()
+                })
+                _logger.info(f"✅ Supplier {queue_item.supplier_id.name} last_sync_date updated")
+            
             self.env.cr.commit()
             
         except Exception as e:
@@ -108,6 +132,10 @@ class SupplierImportQueue(models.Model):
         start_time = time.time()
         
         try:
+            # STAP 1: Archiveer alle oude supplierinfo van deze leverancier
+            archived_count = self.env['product.supplierinfo'].archive_old_supplier_products(self.supplier_id.id)
+            _logger.info(f"Archived {archived_count} old supplierinfo records for {self.supplier_id.name}")
+            
             # Parse CSV
             csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
             csv_reader = csv.DictReader(io.StringIO(csv_data), delimiter=self.csv_separator)
@@ -195,8 +223,12 @@ class SupplierImportQueue(models.Model):
                 'summary': summary,
                 'state': 'completed_with_errors' if stats['errors'] else 'completed',
             })
-            
-            # Update supplier's last sync date
+            # STAP 3: Archiveer/de-archiveer producten op basis van suppliers (alleen bij succes)
+            if not stats['errors']:
+                archived, unarchived = self.env['product.supplierinfo'].check_and_archive_products_without_suppliers()
+                if archived or unarchived:
+                    _logger.info(f"Product archivering: {archived} gearchiveerd, {unarchived} gereactiveerd")
+                        # Update supplier's last sync date
             try:
                 self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
             except Exception as e:

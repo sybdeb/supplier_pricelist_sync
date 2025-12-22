@@ -317,6 +317,10 @@ class DirectImport(models.TransientModel):
         })
         
         try:
+            # STAP 1: Archiveer alle oude supplierinfo van deze leverancier
+            archived_count = self.env['product.supplierinfo'].archive_old_supplier_products(self.supplier_id.id)
+            _logger.info(f"Archived {archived_count} old supplierinfo records for {self.supplier_id.name}")
+            
             # Parse CSV
             csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
             csv_reader = csv.DictReader(io.StringIO(csv_data), delimiter=self.csv_separator)
@@ -379,6 +383,12 @@ class DirectImport(models.TransientModel):
                 'summary': summary,
                 'state': 'completed_with_errors' if stats['errors'] else 'completed',
             })
+            
+            # STAP 3: Archiveer/de-archiveer producten op basis van suppliers (alleen bij succes)
+            if not stats['errors']:
+                archived, unarchived = self.env['product.supplierinfo'].check_and_archive_products_without_suppliers()
+                if archived or unarchived:
+                    _logger.info(f"Product archivering: {archived} gearchiveerd, {unarchived} gereactiveerd")
             
             # Update supplier's last sync date
             try:
@@ -520,7 +530,7 @@ class DirectImport(models.TransientModel):
         vals = {
             'partner_id': self.supplier_id.id,
             'product_tmpl_id': product.product_tmpl_id.id,
-            'last_sync_date': fields.Datetime.now(),  # Track import date
+            'active': True,  # Reactiveer als deze in import staat
             **supplierinfo_fields
         }
         
