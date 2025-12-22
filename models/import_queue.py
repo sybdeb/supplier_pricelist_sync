@@ -147,22 +147,20 @@ class SupplierImportQueue(models.Model):
             BATCH_SIZE = 500
             batch_count = 0
             
-            # Get direct import model for processing logic
+            # Create ONE temp wizard for the entire import (reuse instead of create/delete per row)
             DirectImport = self.env['supplier.direct.import']
+            temp_wizard = DirectImport.create({
+                'supplier_id': self.supplier_id.id,
+                'csv_file': self.csv_file,
+                'csv_filename': self.csv_filename,
+            })
             
             for row_num, row in enumerate(csv_reader, start=2):
                 stats['total'] += 1
                 
                 try:
-                    # Use DirectImport's _process_row method
-                    # Create temporary wizard instance with supplier context
-                    temp_wizard = DirectImport.create({
-                        'supplier_id': self.supplier_id.id,
-                        'csv_file': self.csv_file,
-                        'csv_filename': self.csv_filename,
-                    })
+                    # Reuse the same wizard instance
                     temp_wizard._process_row(row, mapping, stats, row_num)
-                    temp_wizard.unlink()  # Clean up temp wizard
                     
                 except Exception as e:
                     error_msg = str(e) if str(e) else f"{type(e).__name__} (geen error message)"
@@ -187,22 +185,19 @@ class SupplierImportQueue(models.Model):
                     })
                     self.env.cr.commit()
                     
+                    # Clear Odoo's internal cache to prevent memory buildup
+                    self.env.invalidate_all()
+                    
                     _logger.info(f"Background import batch {batch_count} committed ({stats['total']} rows, {stats['created']} created, {stats['skipped']} skipped)")
             
             # Calculate duration
             duration = time.time() - start_time
             
-            # Create summary
-            DirectImport = self.env['supplier.direct.import']
-            temp_wizard = DirectImport.create({
-                'supplier_id': self.supplier_id.id,
-                'csv_file': self.csv_file,
-            })
+            # Create summary and save mapping (reuse existing wizard)
             summary = temp_wizard._create_import_summary(stats)
-            
-            # AUTO-SAVE mapping template (same as direct import)
             temp_wizard._auto_save_mapping_template(mapping)
             
+            # Clean up wizard at the end
             temp_wizard.unlink()
             
             # Update history record
