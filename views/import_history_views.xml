@@ -27,7 +27,7 @@
         <field name="arch" type="xml">
             <form string="Import Details">
                 <header>
-                    <field name="state" widget="statusbar"/>
+                    <field name="state" widget="statusbar" statusbar_clickable="true"/>
                 </header>
                 <sheet>
                     <group>
