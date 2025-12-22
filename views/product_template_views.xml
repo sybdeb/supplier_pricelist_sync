@@ -1,18 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Modify the existing seller_ids field to show active field and include archived -->
-    <record id="product_template_form_view_supplier_archive" model="ir.ui.view">
-        <field name="name">product.template.form.supplier.archive</field>
-        <field name="model">product.template</field>
-        <field name="inherit_id" ref="product.product_template_form_view"/>
-        <field name="arch" type="xml">
-            <!-- Update existing seller_ids to include archived and show active status -->
-            <xpath expr="//page[@name='purchase']//field[@name='seller_ids']" position="attributes">
-                <attribute name="context">{'active_test': False}</attribute>
-            </xpath>
-            <xpath expr="//page[@name='purchase']//field[@name='seller_ids']/tree" position="inside">
-                <field name="active" optional="show"/>
-            </xpath>
-        </field>
-    </record>
+    <!-- Placeholder for future supplier archive views -->
 </odoo>

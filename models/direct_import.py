@@ -390,12 +390,6 @@ class DirectImport(models.TransientModel):
                 if archived or unarchived:
                     _logger.info(f"Product archivering: {archived} gearchiveerd, {unarchived} gereactiveerd")
             
-            # Update supplier's last sync date
-            try:
-                self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
-            except Exception as e:
-                _logger.warning(f"Could not update supplier last_sync_date: {e}")
-            
             self.import_summary = summary
             
             # AUTO-SAVE mapping as template for this supplier

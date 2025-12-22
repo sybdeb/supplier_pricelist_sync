@@ -101,15 +101,8 @@ class SupplierImportQueue(models.Model):
             # Execute import
             queue_item._execute_queued_import()
             
-            # Mark as done - alleen nu last_sync_date updaten bij succesvolle import!
+            # Mark as done
             queue_item.state = 'done'
-            
-            # Update supplier last sync date ALLEEN bij succesvolle import
-            if queue_item.supplier_id:
-                queue_item.supplier_id.sudo().write({
-                    'last_sync_date': fields.Datetime.now()
-                })
-                _logger.info(f"✅ Supplier {queue_item.supplier_id.name} last_sync_date updated")
             
             self.env.cr.commit()
             
@@ -228,11 +221,6 @@ class SupplierImportQueue(models.Model):
                 archived, unarchived = self.env['product.supplierinfo'].check_and_archive_products_without_suppliers()
                 if archived or unarchived:
                     _logger.info(f"Product archivering: {archived} gearchiveerd, {unarchived} gereactiveerd")
-                        # Update supplier's last sync date
-            try:
-                self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
-            except Exception as e:
-                _logger.warning(f"Could not update supplier last_sync_date: {e}")
             
             _logger.info(f"Background import completed: {stats['total']} rows processed, {stats['created']} created, {stats['updated']} updated")
             
