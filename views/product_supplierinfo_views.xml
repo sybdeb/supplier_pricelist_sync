@@ -10,7 +10,6 @@
                 <field name="supplier_stock" string="Voorraad Leverancier"/>  
                 <field name="supplier_sku" string="Leverancier SKU"/>
                 <field name="order_qty" string="Bestel Hoeveelheid"/>
-                <field name="last_sync_date" string="Laatste Import" readonly="1"/>
             </xpath>
             <!-- Product identification fields voor CSV matching -->
             <xpath expr="//field[@name='order_qty']" position="after">
@@ -32,7 +31,6 @@
                 <field name="supplier_stock" string="Voorraad Lev." optional="show"/>
                 <field name="order_qty" optional="hide"/>
                 <field name="supplier_sku" optional="hide"/>
-                <field name="last_sync_date" string="Laatste Import" optional="show"/>
                 <field name="product_name" optional="hide"/>
                 <field name="product_barcode" optional="hide"/>
                 <field name="product_default_code" optional="hide"/>
