@@ -1,37 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Voeg archief leveranciers tabel toe aan product variant form -->
-    <record id="product_product_form_view_supplier_archive" model="ir.ui.view">
-        <field name="name">product.product.form.supplier.archive</field>
-        <field name="model">product.product</field>
-        <field name="inherit_id" ref="product.product_normal_form_view"/>
-        <field name="arch" type="xml">
-            <!-- Voeg archief tabel toe na de actieve leveranciers -->
-            <xpath expr="//page[@name='purchase']//field[@name='seller_ids']" position="after">
-                <group string="Leveranciers Archief" class="mt-3">
-                    <field name="seller_ids" 
-                           context="{'active_test': False, 'tree_view_ref': 'product_supplier_sync.product_supplierinfo_archive_tree_view'}" 
-                           domain="[('active', '=', False)]" 
-                           nolabel="1">
-                        <tree string="Gearchiveerde Leveranciers" 
-                              decoration-muted="not active"
-                              create="false" 
-                              delete="false"
-                              edit="false">
-                            <field name="partner_id"/>
-                            <field name="price" string="Ink.Prijs"/>
-                            <field name="supplier_stock" string="Voorraad Lev."/>
-                            <field name="product_code" string="Art.nr Lev."/>
-                            <field name="write_date" string="Laatste Update"/>
-                            <field name="active" invisible="1"/>
-                        </tree>
-                    </field>
-                </group>
-            </xpath>
-        </field>
-    </record>
-    
-    <!-- Voeg ook toe aan product template form -->
+    <!-- Voeg archief leveranciers tabel toe aan product template form -->
     <record id="product_template_form_view_supplier_archive" model="ir.ui.view">
         <field name="name">product.template.form.supplier.archive</field>
         <field name="model">product.template</field>
