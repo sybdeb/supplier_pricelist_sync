@@ -27,6 +27,13 @@
         <field name="arch" type="xml">
             <form string="Import Details">
                 <header>
+                    <button name="action_set_failed" string="Markeer als Mislukt" type="object" 
+                            invisible="state not in ['running', 'pending', 'queued']" 
+                            class="btn-danger"
+                            confirm="Weet je zeker dat je deze import als mislukt wilt markeren?"/>
+                    <button name="action_set_completed" string="Markeer als Voltooid" type="object" 
+                            invisible="state not in ['running', 'pending']" 
+                            class="btn-success"/>
                     <field name="state" widget="statusbar" statusbar_clickable="true"/>
                 </header>
                 <sheet>
