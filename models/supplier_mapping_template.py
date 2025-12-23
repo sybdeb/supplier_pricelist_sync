@@ -47,6 +47,42 @@ class SupplierMappingTemplate(models.Model):
         default=True
     )
     
+    # Skip voorwaarden voor import
+    skip_out_of_stock = fields.Boolean(
+        string='Skip als Voorraad = 0',
+        default=False,
+        help="Als aangevinkt: skip producten met voorraad 0"
+    )
+    
+    min_stock_qty = fields.Integer(
+        string='Minimum Voorraad',
+        default=0,
+        help="Skip producten met voorraad lager dan dit aantal (0 = uitgeschakeld)"
+    )
+    
+    skip_zero_price = fields.Boolean(
+        string='Skip als Prijs = 0',
+        default=True,
+        help="Als aangevinkt: skip producten zonder prijs"
+    )
+    
+    min_price = fields.Float(
+        string='Minimum Prijs',
+        default=0.0,
+        help="Skip producten met prijs lager dan dit bedrag (0.0 = uitgeschakeld)"
+    )
+    
+    skip_discontinued = fields.Boolean(
+        string='Skip Discontinued',
+        default=False,
+        help="Als aangevinkt: skip producten gemarkeerd als discontinued in CSV"
+    )
+    
+    required_fields = fields.Char(
+        string='Verplichte Velden',
+        help="Komma-gescheiden lijst van CSV kolommen die gevuld moeten zijn (bijv: 'ean,price,stock')"
+    )
+    
     # Tracking fields
     create_date = fields.Datetime(string='Aangemaakt op', readonly=True)
     write_date = fields.Datetime(string='Laatste wijziging', readonly=True)

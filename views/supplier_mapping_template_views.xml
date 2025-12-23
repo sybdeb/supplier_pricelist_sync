@@ -47,6 +47,35 @@
                                 </list>
                             </field>
                         </page>
+                        
+                        <page string="Skip Voorwaarden" name="skip_conditions">
+                            <group>
+                                <group string="Voorraad Filters">
+                                    <field name="skip_out_of_stock"/>
+                                    <field name="min_stock_qty"/>
+                                </group>
+                                <group string="Prijs Filters">
+                                    <field name="skip_zero_price"/>
+                                    <field name="min_price"/>
+                                </group>
+                            </group>
+                            <group>
+                                <group string="Overige Filters">
+                                    <field name="skip_discontinued"/>
+                                    <field name="required_fields" placeholder="bijv: ean,price,stock"/>
+                                </group>
+                                <group>
+                                    <div class="alert alert-info" role="alert">
+                                        <strong>Info:</strong>
+                                        <ul>
+                                            <li>Rijen die niet voldoen aan deze voorwaarden worden overgeslagen</li>
+                                            <li>Zie import summary voor aantal geskipte rijen per reden</li>
+                                            <li>Laat velden leeg/0 om filter uit te schakelen</li>
+                                        </ul>
+                                    </div>
+                                </group>
+                            </group>
+                        </page>
                     </notebook>
                 </sheet>
             </form>

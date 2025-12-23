@@ -15,6 +15,11 @@
                     <group>
                         <group>
                             <field name="supplier_id" options="{'no_create': True}"/>
+                            <field name="template_id" 
+                                   domain="[('supplier_id', '=', supplier_id)]"
+                                   options="{'no_create': True}"
+                                   invisible="not supplier_id"
+                                   help="Laad opgeslagen mapping + skip voorwaarden"/>
                         </group>
                         <group>
                             <field name="csv_file" filename="csv_filename"/>
