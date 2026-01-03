@@ -37,7 +37,8 @@ class TestSupplierSync(TransactionCase):
     def test_supplier_has_last_sync_field(self):
         """Test that suppliers have last_sync_date field"""
         self.assertIn('last_sync_date', self.supplier._fields)
-        self.assertIsNone(self.supplier.last_sync_date)
+        # In Odoo, date fields default to False, not None
+        self.assertFalse(self.supplier.last_sync_date)
 
     def test_supplierinfo_creation(self):
         """Test creating a supplier info record"""
