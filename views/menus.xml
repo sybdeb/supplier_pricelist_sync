@@ -11,6 +11,13 @@
               action="action_supplier_pricelist_dashboard"
               sequence="10"/>
 
+    <!-- Import Queue -->
+    <menuitem id="menu_supplier_import_queue"
+              name="Import Wachtrij"
+              parent="menu_supplier_pricelist_root"
+              action="action_supplier_import_queue"
+              sequence="12"/>
+
     <!-- Scheduled Imports -->
     <menuitem id="menu_supplier_import_schedule"
               name="Scheduled Imports"

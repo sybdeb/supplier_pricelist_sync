@@ -75,9 +75,5 @@
     </record>
 
     <!-- Menu item -->
-    <menuitem id="menu_supplier_import_queue"
-              name="Import Wachtrij"
-              parent="menu_supplier_pricelist_root"
-              action="action_supplier_import_queue"
-              sequence="15"/>
+
 </odoo>
