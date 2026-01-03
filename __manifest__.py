@@ -23,6 +23,7 @@ Built for Odoo 18 Community Edition
     "data": [
         "security/ir.model.access.csv",
         "data/import_queue_cron.xml",
+        "views/menus.xml",
         "views/dashboard_views.xml",
         "views/direct_import_views.xml",
         "views/import_history_views.xml",
@@ -31,7 +32,6 @@ Built for Odoo 18 Community Edition
         "views/supplier_mapping_template_views.xml",
         "views/product_supplierinfo_views.xml",
         "views/product_template_views.xml",
-        "views/menus.xml",
     ],
     "installable": True,
     "application": True,
