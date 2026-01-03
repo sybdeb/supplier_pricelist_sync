@@ -24,7 +24,6 @@ class TestSupplierSync(TransactionCase):
             'name': 'Test Product',
             'default_code': 'TEST001',
             'barcode': '1234567890123',
-            'detailed_type': 'consu',  # Odoo 19: consumable product
         })
 
     def test_module_installed(self):
