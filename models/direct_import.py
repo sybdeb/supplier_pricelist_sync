@@ -34,6 +34,14 @@ class DirectImport(models.TransientModel):
         required=True
     )
     
+    # Template selection for loading saved mappings
+    template_id = fields.Many2one(
+        'supplier.mapping.template',
+        string='Mapping Template',
+        domain="[('supplier_id', '=', supplier_id)]",
+        help="Laad opgeslagen mapping + skip voorwaarden"
+    )
+    
     # File upload (Binary auto-persists!)
     csv_file = fields.Binary(string='CSV Bestand', required=True)
     csv_filename = fields.Char(string='Bestandsnaam')
@@ -62,8 +70,64 @@ class DirectImport(models.TransientModel):
         string='Column Mappings'
     )
     
+    # Skip voorwaarden (kunnen uit template geladen worden)
+    skip_out_of_stock = fields.Boolean(
+        string='Skip als Voorraad = 0',
+        default=False,
+        help="Als aangevinkt: skip producten met voorraad 0"
+    )
+    
+    min_stock_qty = fields.Integer(
+        string='Minimum Voorraad',
+        default=0,
+        help="Skip producten met voorraad lager dan dit aantal (0 = uitgeschakeld)"
+    )
+    
+    skip_zero_price = fields.Boolean(
+        string='Skip als Prijs = 0',
+        default=True,
+        help="Als aangevinkt: skip producten zonder prijs"
+    )
+    
+    min_price = fields.Float(
+        string='Minimum Prijs',
+        default=0.0,
+        help="Skip producten met prijs lager dan dit bedrag (0.0 = uitgeschakeld)"
+    )
+    
+    skip_discontinued = fields.Boolean(
+        string='Skip Discontinued',
+        default=False,
+        help="Als aangevinkt: skip producten gemarkeerd als discontinued in CSV"
+    )
+    
     # Import results
     import_summary = fields.Text('Import Summary', readonly=True)
+    
+    # =========================================================================
+    # TEMPLATE LOADING
+    # =========================================================================
+    
+    @api.onchange('template_id')
+    def _onchange_template_id(self):
+        """Load mapping configuration from template when selected"""
+        if self.template_id:
+            # Load skip conditions from template
+            self.skip_out_of_stock = self.template_id.skip_out_of_stock
+            self.min_stock_qty = self.template_id.min_stock_qty
+            self.skip_zero_price = self.template_id.skip_zero_price
+            self.min_price = self.template_id.min_price
+            self.skip_discontinued = self.template_id.skip_discontinued
+            
+            _logger.info(f"Template '{self.template_id.name}' loaded. "
+                        f"Skip conditions applied. Mapping will be applied after CSV parse.")
+        else:
+            # Reset to defaults when template is cleared
+            self.skip_out_of_stock = False
+            self.min_stock_qty = 0
+            self.skip_zero_price = True
+            self.min_price = 0.0
+            self.skip_discontinued = False
     
     # =========================================================================
     # PARSING & AUTO-MAPPING
@@ -101,14 +165,18 @@ class DirectImport(models.TransientModel):
             mapping_vals = []
             first_row = data_rows[0]
             
-            # Check if template exists for this supplier
-            template = None
-            already_mapped_fields = set()  # Track which Odoo fields are already mapped
-            
-            if self.supplier_id:
+            # Use selected template or auto-find one for this supplier
+            template = self.template_id
+            if not template and self.supplier_id:
+                # Auto-find template if none selected
                 template = self.env['supplier.mapping.template'].search([
-                    ('supplier_id', '=', self.supplier_id.id)
+                    ('supplier_id', '=', self.supplier_id.id),
+                    ('active', '=', True)
                 ], limit=1)
+                if template:
+                    _logger.info(f"Auto-loaded template '{template.name}' for supplier {self.supplier_id.name}")
+            
+            already_mapped_fields = set()  # Track which Odoo fields are already mapped
             
             for idx, header in enumerate(headers):
                 sample = first_row[idx] if idx < len(first_row) else ''
@@ -357,7 +425,13 @@ class DirectImport(models.TransientModel):
                     self.env.cr.commit()
                 
                 try:
-                    self._process_row(row, mapping, stats, row_num)
+                    self._process_row(row, mapping, stats, row_num, {
+                        'skip_out_of_stock': self.skip_out_of_stock,
+                        'min_stock_qty': self.min_stock_qty,
+                        'skip_zero_price': self.skip_zero_price,
+                        'min_price': self.min_price,
+                        'skip_discontinued': self.skip_discontinued,
+                    })
                 except Exception as e:
                     error_msg = str(e)
                     stats['errors'].append(f"Rij {row_num}: {error_msg}")
@@ -405,12 +479,23 @@ class DirectImport(models.TransientModel):
                 })
             raise UserError(f"Import failed: {str(e)}")
     
-    def _process_row(self, row, mapping, stats, row_num=0):
+    def _process_row(self, row, mapping, stats, row_num=0, skip_conditions=None):
         """
         Process single CSV row met DYNAMISCHE field mapping
         Mapping format: {'csv_column': 'model.fieldname', ...}
         + Error logging voor niet gevonden producten
+        + Skip conditions for filtering rows
         """
+        # Default skip conditions if not provided
+        if skip_conditions is None:
+            skip_conditions = {
+                'skip_out_of_stock': False,
+                'min_stock_qty': 0,
+                'skip_zero_price': True,
+                'min_price': 0.0,
+                'skip_discontinued': False,
+            }
+        
         # Separate mappings by model
         product_fields = {}  # Fields to update on product.product
         supplierinfo_fields = {}  # Fields to create/update on product.supplierinfo
@@ -457,6 +542,39 @@ class DirectImport(models.TransientModel):
                     product_fields[field] = converted_value
             elif model == 'supplierinfo':
                 supplierinfo_fields[field] = converted_value
+        
+        # APPLY SKIP CONDITIONS
+        # Check stock quantity skip conditions
+        if skip_conditions.get('skip_out_of_stock') or skip_conditions.get('min_stock_qty', 0) > 0:
+            stock_qty = supplierinfo_fields.get('supplier_stock', 0)
+            if skip_conditions.get('skip_out_of_stock') and stock_qty == 0:
+                stats['skipped'] += 1
+                _logger.info(f"Row {row_num}: Skipped - out of stock (qty={stock_qty})")
+                return
+            if skip_conditions.get('min_stock_qty', 0) > 0 and stock_qty < skip_conditions['min_stock_qty']:
+                stats['skipped'] += 1
+                _logger.info(f"Row {row_num}: Skipped - below minimum stock (qty={stock_qty}, min={skip_conditions['min_stock_qty']})")
+                return
+        
+        # Check price skip conditions
+        if skip_conditions.get('skip_zero_price') or skip_conditions.get('min_price', 0.0) > 0.0:
+            price = supplierinfo_fields.get('price', 0.0)
+            if skip_conditions.get('skip_zero_price') and price == 0.0:
+                stats['skipped'] += 1
+                _logger.info(f"Row {row_num}: Skipped - zero price")
+                return
+            if skip_conditions.get('min_price', 0.0) > 0.0 and price < skip_conditions['min_price']:
+                stats['skipped'] += 1
+                _logger.info(f"Row {row_num}: Skipped - below minimum price (price={price}, min={skip_conditions['min_price']})")
+                return
+        
+        # Check discontinued skip condition  
+        if skip_conditions.get('skip_discontinued'):
+            # Check if there's a discontinued field in product_fields
+            if product_fields.get('discontinued') or product_fields.get('is_discontinued'):
+                stats['skipped'] += 1
+                _logger.info(f"Row {row_num}: Skipped - product marked as discontinued")
+                return
         
         # STEP 1: Product lookup (priority: barcode > product_code)
         _logger.info(f"Row {row_num}: Looking up product - barcode='{barcode}', product_code='{product_code}'")
