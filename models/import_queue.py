@@ -207,3 +207,22 @@ class SupplierImportQueue(models.Model):
         except Exception as e:
             _logger.error(f"Background import failed: {e}", exc_info=True)
             raise
+    
+    def action_requeue(self):
+        """Requeue failed or processing imports"""
+        for record in self:
+            if record.state in ['failed', 'processing']:
+                record.write({'state': 'queued'})
+                if record.history_id:
+                    record.history_id.write({'state': 'pending'})
+    
+    def action_mark_failed(self):
+        """Manually mark queued/processing imports as failed"""
+        for record in self:
+            if record.state in ['queued', 'processing']:
+                record.write({'state': 'failed'})
+                if record.history_id:
+                    record.history_id.write({
+                        'state': 'failed',
+                        'summary': 'Handmatig gemarkeerd als mislukt door gebruiker'
+                    })
