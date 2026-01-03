@@ -62,45 +62,8 @@ class DirectImport(models.TransientModel):
         string='Column Mappings'
     )
     
-    template_id = fields.Many2one(
-        'supplier.mapping.template',
-        string='Mapping Template',
-        help="Optioneel: gebruik opgeslagen template (inclusief skip-voorwaarden)"
-    )
-    
     # Import results
     import_summary = fields.Text('Import Summary', readonly=True)
-    
-    # =========================================================================
-    # ONCHANGE HANDLERS
-    # =========================================================================
-    
-    @api.onchange('template_id')
-    def _onchange_template_id(self):
-        """Load template when selected - shows user the skip conditions that will be applied"""
-        if self.template_id:
-            # Info message about loaded skip conditions
-            conditions = []
-            if self.template_id.skip_out_of_stock:
-                conditions.append("✓ Skip voorraad = 0")
-            if self.template_id.min_stock_qty > 0:
-                conditions.append(f"✓ Min voorraad: {self.template_id.min_stock_qty}")
-            if self.template_id.skip_zero_price:
-                conditions.append("✓ Skip prijs = 0")
-            if self.template_id.min_price > 0:
-                conditions.append(f"✓ Min prijs: {self.template_id.min_price}")
-            if self.template_id.skip_discontinued:
-                conditions.append("✓ Skip discontinued")
-            if self.template_id.required_fields:
-                conditions.append(f"✓ Verplichte velden: {self.template_id.required_fields}")
-            
-            if conditions:
-                return {
-                    'warning': {
-                        'title': 'Skip Voorwaarden Geladen',
-                        'message': 'De volgende filters worden toegepast:\n\n' + '\n'.join(conditions)
-                    }
-                }
     
     # =========================================================================
     # PARSING & AUTO-MAPPING
@@ -142,10 +105,7 @@ class DirectImport(models.TransientModel):
             template = None
             already_mapped_fields = set()  # Track which Odoo fields are already mapped
             
-            # First try explicit template selection, then auto-find
-            if self.template_id:
-                template = self.template_id
-            elif self.supplier_id:
+            if self.supplier_id:
                 template = self.env['supplier.mapping.template'].search([
                     ('supplier_id', '=', self.supplier_id.id)
                 ], limit=1)
@@ -357,10 +317,6 @@ class DirectImport(models.TransientModel):
         })
         
         try:
-            # STAP 1: Archiveer alle oude supplierinfo van deze leverancier
-            archived_count = self.env['product.supplierinfo'].archive_old_supplier_products(self.supplier_id.id)
-            _logger.info(f"Archived {archived_count} old supplierinfo records for {self.supplier_id.name}")
-            
             # Parse CSV
             csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
             csv_reader = csv.DictReader(io.StringIO(csv_data), delimiter=self.csv_separator)
@@ -385,7 +341,7 @@ class DirectImport(models.TransientModel):
                 if stats["total"] % BATCH_SIZE == 0:
                     self.env.cr.commit()
                     batch_count += 1
-                    _logger.info(f"Batch {batch_count} processed ({stats["total"]} rows)")
+                    _logger.info(f"Batch {batch_count} processed ({stats['total']} rows)")
                     
                     # Update history with current progress
                     history.write({
@@ -424,11 +380,11 @@ class DirectImport(models.TransientModel):
                 'state': 'completed_with_errors' if stats['errors'] else 'completed',
             })
             
-            # STAP 3: Archiveer/de-archiveer producten op basis van suppliers (alleen bij succes)
-            if not stats['errors']:
-                archived, unarchived = self.env['product.supplierinfo'].check_and_archive_products_without_suppliers()
-                if archived or unarchived:
-                    _logger.info(f"Product archivering: {archived} gearchiveerd, {unarchived} gereactiveerd")
+            # Update supplier's last sync date
+            try:
+                self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
+            except Exception as e:
+                _logger.warning(f"Could not update supplier last_sync_date: {e}")
             
             self.import_summary = summary
             
@@ -503,15 +459,14 @@ class DirectImport(models.TransientModel):
                 supplierinfo_fields[field] = converted_value
         
         # STEP 1: Product lookup (priority: barcode > product_code)
-        # BELANGRIJK: active_test=False zodat we ook gearchiveerde producten vinden en kunnen reactiveren!
         _logger.info(f"Row {row_num}: Looking up product - barcode='{barcode}', product_code='{product_code}'")
         product = None
         if barcode:
-            product = self.env['product.product'].with_context(active_test=False).search([('barcode', '=', barcode)], limit=1)
-            _logger.info(f"Row {row_num}: Barcode search for '{barcode}' found: {product.id if product else 'None'} (active={product.active if product else 'N/A'})")
+            product = self.env['product.product'].search([('barcode', '=', barcode)], limit=1)
+            _logger.info(f"Row {row_num}: Barcode search for '{barcode}' found: {product.id if product else 'None'}")
         
         if not product and product_code:
-            product = self.env['product.product'].with_context(active_test=False).search([('default_code', '=', product_code)], limit=1)
+            product = self.env['product.product'].search([('default_code', '=', product_code)], limit=1)
         
         if not product:
             # LOG ERROR: Product niet gevonden
@@ -542,16 +497,7 @@ class DirectImport(models.TransientModel):
             except Exception as e:
                 _logger.warning(f"Could not update product {product.default_code}: {e}")
         
-        # STEP 3: Apply skip conditions (from template if available)
-        skip_reason = self._check_skip_conditions(row, supplierinfo_fields, product_fields)
-        if skip_reason:
-            _logger.info(f"Row {row_num}: Skipped - {skip_reason}")
-            stats['skipped'] += 1
-            stats.setdefault('skip_reasons', {}).setdefault(skip_reason, 0)
-            stats['skip_reasons'][skip_reason] += 1
-            return  # Skip this row
-        
-        # STEP 4: Validate required fields
+        # STEP 3: Create/Update supplierinfo
         price = supplierinfo_fields.get('price', 0.0)
         if not price or price == 0.0:
             raise ValidationError(f"Geen (geldige) prijs gevonden voor product {product.default_code}")
@@ -563,8 +509,8 @@ class DirectImport(models.TransientModel):
             if not product.product_tmpl_id.active:
                 product.product_tmpl_id.write({'active': True})
         
-        # Search existing supplierinfo (ook voor gearchiveerde producten)
-        supplierinfo = self.env['product.supplierinfo'].with_context(active_test=False).search([
+        # Search existing supplierinfo
+        supplierinfo = self.env['product.supplierinfo'].search([
             ('product_tmpl_id', '=', product.product_tmpl_id.id),
             ('partner_id', '=', self.supplier_id.id)
         ], limit=1)
@@ -573,7 +519,7 @@ class DirectImport(models.TransientModel):
         vals = {
             'partner_id': self.supplier_id.id,
             'product_tmpl_id': product.product_tmpl_id.id,
-            'active': True,  # Reactiveer als deze in import staat
+            'last_sync_date': fields.Datetime.now(),  # Track import date
             **supplierinfo_fields
         }
         
@@ -584,58 +530,6 @@ class DirectImport(models.TransientModel):
         else:
             self.env['product.supplierinfo'].create(vals)
             stats['created'] += 1
-    
-    def _check_skip_conditions(self, row_data, supplierinfo_fields, product_fields):
-        """Check if row should be skipped based on template conditions
-        Returns: skip reason string if should skip, None otherwise
-        """
-        if not self.template_id:
-            return None  # No template = no skip conditions
-        
-        template = self.template_id
-        
-        # 1. Check voorraad
-        stock_qty = supplierinfo_fields.get('qty_available', 0) or supplierinfo_fields.get('stock', 0) or 0
-        try:
-            stock_qty = float(stock_qty)
-        except (ValueError, TypeError):
-            stock_qty = 0
-        
-        if template.skip_out_of_stock and stock_qty == 0:
-            return "Geen voorraad"
-        
-        if template.min_stock_qty > 0 and stock_qty < template.min_stock_qty:
-            return f"Voorraad te laag ({stock_qty} < {template.min_stock_qty})"
-        
-        # 2. Check prijs
-        price = supplierinfo_fields.get('price', 0.0)
-        try:
-            price = float(price)
-        except (ValueError, TypeError):
-            price = 0.0
-        
-        if template.skip_zero_price and price == 0:
-            return "Prijs = 0"
-        
-        if template.min_price > 0 and price < template.min_price:
-            return f"Prijs te laag ({price} < {template.min_price})"
-        
-        # 3. Check discontinued
-        if template.skip_discontinued:
-            # Check various possible discontinued indicators
-            for key, value in row_data.items():
-                if 'discontinued' in key.lower() or 'eol' in key.lower():
-                    if str(value).lower() in ['true', '1', 'yes', 'ja', 'discontinued']:
-                        return "Product discontinued"
-        
-        # 4. Check required fields
-        if template.required_fields:
-            required = [f.strip() for f in template.required_fields.split(',')]
-            for field_name in required:
-                if field_name not in row_data or not row_data[field_name]:
-                    return f"Verplicht veld '{field_name}' ontbreekt"
-        
-        return None  # No skip conditions triggered
     
     def _convert_field_value(self, model, field_name, string_value):
         """Convert string value to correct field type"""
@@ -698,13 +592,6 @@ class DirectImport(models.TransientModel):
             f"  🔄 Bijgewerkt: {stats['updated']}",
             f"  ⏭️  Overgeslagen: {stats['skipped']}",
         ]
-        
-        # Add skip reasons if any
-        if stats.get('skip_reasons'):
-            summary_lines.append(f"")
-            summary_lines.append(f"ℹ️  Skip redenen:")
-            for reason, count in stats['skip_reasons'].items():
-                summary_lines.append(f"  - {reason}: {count}x")
         
         if stats['errors']:
             summary_lines.append(f"")

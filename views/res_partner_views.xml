@@ -9,8 +9,22 @@
                 <label for="is_supplier_sync" string="Is Supplier"/>
                 <field name="is_supplier_sync" widget="boolean_toggle" nolabel="1"/>
             </xpath>
+            <xpath expr="//field[@name='category_id']" position="after">
+                <field name="last_sync_date" string="Laatste Import" readonly="1" 
+                       attrs="{'invisible': [('supplier_rank', '=', 0)]}"/>
+            </xpath>
         </field>
     </record>
     
-
+    <!-- Add last_sync_date to supplier tree view -->
+    <record id="view_partner_tree_supplier_sync" model="ir.ui.view">
+        <field name="name">res.partner.tree.supplier.sync</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='phone']" position="after">
+                <field name="last_sync_date" string="Laatste Import" optional="show"/>
+            </xpath>
+        </field>
+    </record>
 </odoo>

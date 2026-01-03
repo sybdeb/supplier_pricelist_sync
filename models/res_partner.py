@@ -11,6 +11,12 @@ class ResPartner(models.Model):
         help="Check to mark this contact as a supplier"
     )
     
+    last_sync_date = fields.Datetime(
+        string="Laatste Import",
+        help="Datum en tijd van de laatste succesvolle CSV import voor deze leverancier",
+        readonly=True
+    )
+    
     @api.depends("supplier_rank")
     def _compute_is_supplier_sync(self):
         for partner in self:
