@@ -600,14 +600,15 @@ class DirectImport(models.TransientModel):
                 return
         
         # STEP 1: Product lookup (priority: barcode > product_code)
+        # BELANGRIJK: Zoek ook in inactive producten (voor reactivatie)
         _logger.info(f"Row {row_num}: Looking up product - barcode='{barcode}', product_code='{product_code}'")
         product = None
         if barcode:
-            product = self.env['product.product'].search([('barcode', '=', barcode)], limit=1)
+            product = self.env['product.product'].with_context(active_test=False).search([('barcode', '=', barcode)], limit=1)
             _logger.info(f"Row {row_num}: Barcode search for '{barcode}' found: {product.id if product else 'None'}")
         
         if not product and product_code:
-            product = self.env['product.product'].search([('default_code', '=', product_code)], limit=1)
+            product = self.env['product.product'].with_context(active_test=False).search([('default_code', '=', product_code)], limit=1)
         
         if not product:
             # LOG ERROR: Product niet gevonden
@@ -638,17 +639,17 @@ class DirectImport(models.TransientModel):
             except Exception as e:
                 _logger.warning(f"Could not update product {product.default_code}: {e}")
         
+        # STEP 2.5: Reactiveer product als het gearchiveerd was
+        if not product.active or not product.product_tmpl_id.active:
+            _logger.info(f"Reactiveren product {product.default_code} (was gearchiveerd)")
+            product.write({'active': True})
+            if not product.product_tmpl_id.active:
+                product.product_tmpl_id.write({'active': True})
+        
         # STEP 3: Create/Update supplierinfo
         price = supplierinfo_fields.get('price', 0.0)
         if not price or price == 0.0:
             raise ValidationError(f"Geen (geldige) prijs gevonden voor product {product.default_code}")
-        
-        # STEP 3.1: Auto-reactivate archived products
-        if not product.active or not product.product_tmpl_id.active:
-            _logger.info(f"De-archivering product {product.default_code} (was gearchiveerd, nu weer in import)")
-            product.write({'active': True})
-            if not product.product_tmpl_id.active:
-                product.product_tmpl_id.write({'active': True})
         
         # Search existing supplierinfo
         supplierinfo = self.env['product.supplierinfo'].search([

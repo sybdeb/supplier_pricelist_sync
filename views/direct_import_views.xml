@@ -37,6 +37,19 @@
                         </group>
                     </group>
                     
+                    <!-- Import Filtering (from template) -->
+                    <group string="🔍 Import Filtering" invisible="not template_id">
+                        <group>
+                            <field name="skip_out_of_stock"/>
+                            <field name="min_stock_qty"/>
+                            <field name="skip_zero_price"/>
+                            <field name="min_price"/>
+                        </group>
+                        <group>
+                            <field name="skip_discontinued"/>
+                        </group>
+                    </group>
+                    
                     <!-- Parse Button -->
                     <div class="alert alert-info mt-3" invisible="mapping_lines">
                         <p class="mb-2">
