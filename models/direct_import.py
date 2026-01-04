@@ -343,41 +343,76 @@ class DirectImport(models.TransientModel):
         
         # Check file size to determine if background processing is needed
         csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
-        row_count = len(csv_data.split('\n')) - 1  # -1 for header
+        csv_lines = csv_data.split('\n')
+        row_count = len(csv_lines) - 1  # -1 for header
         
         # For large imports (>1000 rows), queue as background job
         if row_count > 1000:
-            # Create history record in 'queued' state
-            history = self.env['supplier.import.history'].create({
+            # Large imports chunking: split into chunks of max 20k rows
+            CHUNK_SIZE = 20000
+            chunks_needed = (row_count + CHUNK_SIZE - 1) // CHUNK_SIZE  # Ceiling division
+            
+            _logger.info(f"Large import detected: {row_count} rows. Splitting into {chunks_needed} chunks of max {CHUNK_SIZE} rows each.")
+            
+            # Create a parent history record to track overall progress
+            parent_history = self.env['supplier.import.history'].create({
                 'supplier_id': self.supplier_id.id,
                 'filename': self.csv_filename,
                 'state': 'queued',
                 'total_rows': row_count,
+                'summary': f'Groot bestand ({row_count} regels) wordt verwerkt in {chunks_needed} delen',
             })
             
-            # Store import data for background processing
-            self.env['supplier.import.queue'].create({
-                'history_id': history.id,
-                'csv_file': self.csv_file,
-                'csv_filename': self.csv_filename,
-                'supplier_id': self.supplier_id.id,
-                'encoding': self.encoding,
-                'csv_separator': self.csv_separator,
-                'mapping': str(mapping),  # Store as string (will eval() later)
-                # Filter settings
-                'skip_out_of_stock': self.skip_out_of_stock,
-                'min_stock_qty': self.min_stock_qty,
-                'skip_zero_price': self.skip_zero_price,
-                'min_price': self.min_price,
-                'skip_discontinued': self.skip_discontinued,
-                'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
-            })
+            header = csv_lines[0]
+            
+            # Split CSV into chunks and create queue items
+            for chunk_num in range(chunks_needed):
+                start_idx = chunk_num * CHUNK_SIZE + 1  # +1 to skip header
+                end_idx = min((chunk_num + 1) * CHUNK_SIZE + 1, len(csv_lines))
+                
+                chunk_lines = [header] + csv_lines[start_idx:end_idx]
+                chunk_csv = '\n'.join(chunk_lines)
+                chunk_file = base64.b64encode(chunk_csv.encode(self.encoding))
+                chunk_row_count = len(chunk_lines) - 1
+                
+                # Create history for this chunk
+                chunk_history = self.env['supplier.import.history'].create({
+                    'supplier_id': self.supplier_id.id,
+                    'filename': f"{self.csv_filename} (deel {chunk_num + 1}/{chunks_needed})",
+                    'state': 'queued',
+                    'total_rows': chunk_row_count,
+                })
+                
+                # Create queue item for this chunk
+                self.env['supplier.import.queue'].create({
+                    'history_id': chunk_history.id,
+                    'csv_file': chunk_file,
+                    'csv_filename': f"{self.csv_filename}_chunk_{chunk_num + 1}",
+                    'supplier_id': self.supplier_id.id,
+                    'encoding': self.encoding,
+                    'csv_separator': self.csv_separator,
+                    'mapping': str(mapping),
+                    # Filter settings
+                    'skip_out_of_stock': self.skip_out_of_stock,
+                    'min_stock_qty': self.min_stock_qty,
+                    'skip_zero_price': self.skip_zero_price,
+                    'min_price': self.min_price,
+                    'skip_discontinued': self.skip_discontinued,
+                    'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo if chunk_num == chunks_needed - 1 else False,  # Only cleanup in last chunk
+                })
+                
+                _logger.info(f"Created chunk {chunk_num + 1}/{chunks_needed}: rows {start_idx}-{end_idx-1} ({chunk_row_count} rows)")
             
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
                 'params': {
                     'title': 'Import in wachtrij',
+                    'message': f'Groot bestand ({row_count} regels) wordt verwerkt in {chunks_needed} delen. Check Import History voor voortgang.',
+                    'type': 'info',
+                    'sticky': False,
+                }
+            }
                     'message': f'Import van {row_count} rijen wordt in de achtergrond verwerkt. Check Import History voor status.',
                     'type': 'info',
                     'sticky': False,

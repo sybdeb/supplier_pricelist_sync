@@ -72,22 +72,22 @@ class SupplierImportQueue(models.Model):
         # Check if there's already an import being processed
         processing_items = self.search([('state', '=', 'processing')])
         
-        # Check for stuck imports (no batch progress for more than 1 hour)
+        # Check for stuck imports (no batch progress for more than 3 hours)
         # Uses history write_date which is updated every batch (500 rows)
         if processing_items:
             from datetime import datetime, timedelta
-            one_hour_ago = fields.Datetime.now() - timedelta(hours=1)
+            three_hours_ago = fields.Datetime.now() - timedelta(hours=3)
             stuck_items = processing_items.filtered(
-                lambda i: i.history_id and i.history_id.write_date and i.history_id.write_date < one_hour_ago
+                lambda i: i.history_id and i.history_id.write_date and i.history_id.write_date < three_hours_ago
             )
             
             if stuck_items:
-                _logger.warning(f'Found {len(stuck_items)} stuck import(s) (no batch progress >1h), marking as failed: {stuck_items.ids}')
+                _logger.warning(f'Found {len(stuck_items)} stuck import(s) (no batch progress >3h), marking as failed: {stuck_items.ids}')
                 for item in stuck_items:
                     item.write({'state': 'failed'})
                     item.history_id.write({
                         'state': 'failed',
-                        'summary': 'Import timeout: No batch progress for more than 1 hour (mogelijk vastgelopen)'
+                        'summary': 'Import timeout: No batch progress for more than 3 hours (mogelijk vastgelopen)'
                     })
                 # Refresh processing_items list
                 processing_items = self.search([('state', '=', 'processing')])
