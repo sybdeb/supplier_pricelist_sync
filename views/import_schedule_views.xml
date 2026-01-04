@@ -169,6 +169,20 @@
                             <field name="total_runs" readonly="1"/>
                         </group>
                     </group>
+
+                    <!-- Import Filtering Options -->
+                    <group string="í´ Import Filtering" invisible="not mapping_template_id">
+                        <group>
+                            <field name="template_skip_out_of_stock"/>
+                            <field name="template_min_stock_qty"/>
+                            <field name="template_skip_zero_price"/>
+                            <field name="template_min_price"/>
+                        </group>
+                        <group>
+                            <field name="template_skip_discontinued"/>
+                            <field name="template_required_fields" placeholder="bijv: ean,price,stock"/>
+                        </group>
+                    </group>
                     
                     <notebook invisible="not id">
                         <page string="ðŸ“‹ Details" name="details" invisible="import_method == 'manual'">
