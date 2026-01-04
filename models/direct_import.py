@@ -676,15 +676,15 @@ class DirectImport(models.TransientModel):
             # Log prijswijziging voor debugging
             if vals.get('previous_price'):
                 new_price = vals.get('price', supplierinfo.price)
-                change_pct = ((ne
-        
-        # Track product template ID (voor cleanup oude supplierinfo)
-        stats.get('processed_products', set()).add(product.product_tmpl_id.id)w_price - vals['previous_price']) / vals['previous_price']) * 100
+                change_pct = ((new_price - vals['previous_price']) / vals['previous_price']) * 100
                 _logger.info(f"Product {product.default_code}: Prijs {vals['previous_price']:.2f} → {new_price:.2f} ({change_pct:+.1f}%)")
         else:
             # Nieuwe supplierinfo: geen previous_price (eerste keer)
             self.env['product.supplierinfo'].create(vals)
             stats['created'] += 1
+        
+        # Track product template ID (voor cleanup oude supplierinfo)
+        stats.get('processed_products', set()).add(product.product_tmpl_id.id)
     
     def _cleanup_old_supplierinfo(self, stats):
         """
