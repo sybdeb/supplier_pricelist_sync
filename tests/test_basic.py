@@ -71,3 +71,28 @@ class TestSupplierSync(TransactionCase):
         })
         self.assertEqual(history.supplier_id, self.supplier)
         self.assertEqual(history.state, 'completed')
+
+    def test_previous_price_tracking(self):
+        """Test that previous_price is saved when price changes"""
+        # Create initial supplierinfo
+        supplierinfo = self.env['product.supplierinfo'].create({
+            'partner_id': self.supplier.id,
+            'product_tmpl_id': self.product.product_tmpl_id.id,
+            'price': 100.0,
+        })
+        
+        # Verify initial state (no previous price yet)
+        self.assertEqual(supplierinfo.price, 100.0)
+        self.assertEqual(supplierinfo.previous_price, 0.0)
+        self.assertEqual(supplierinfo.price_change_pct, 0.0)
+        
+        # Update price (simulating import update)
+        supplierinfo.write({
+            'previous_price': supplierinfo.price,  # Save old price
+            'price': 80.0,  # New price
+        })
+        
+        # Verify previous_price was saved and change calculated
+        self.assertEqual(supplierinfo.price, 80.0)
+        self.assertEqual(supplierinfo.previous_price, 100.0)
+        self.assertEqual(supplierinfo.price_change_pct, -20.0)  # -20% daling

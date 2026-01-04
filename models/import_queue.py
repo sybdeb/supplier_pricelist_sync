@@ -35,6 +35,26 @@ class SupplierImportQueue(models.Model):
     ], string='Status', default='queued', required=True)
     
     @api.model
+    def _cleanup_old_queue_records(self):
+        """
+        Cron job: Cleanup oude queue records (ouder dan 30 dagen).
+        Alleen 'done' en 'failed' records worden verwijderd.
+        """
+        from datetime import timedelta
+        cleanup_date = fields.Datetime.now() - timedelta(days=30)
+        
+        old_records = self.search([
+            ('state', 'in', ['done', 'failed']),
+            ('create_date', '<', cleanup_date)
+        ])
+        
+        if old_records:
+            _logger.info(f"Cleanup: Verwijderen {len(old_records)} oude queue records (>30 dagen)")
+            old_records.unlink()
+        
+        return True
+    
+    @api.model
     def _process_queue(self):
         """
         Cron job method: Process queued imports one by one

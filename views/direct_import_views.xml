@@ -70,6 +70,15 @@
                         <div class="alert alert-warning mt-2">
                             <strong>⚠️ Vereist:</strong> Minimaal <code>barcode</code> of <code>product_code</code> + <code>price</code>
                         </div>
+                        
+                        <!-- Cleanup Options -->
+                        <group string="🧹 Cleanup Opties (Gevaarlijk!)">
+                            <field name="cleanup_old_supplierinfo"/>
+                            <div invisible="not cleanup_old_supplierinfo" class="alert alert-danger">
+                                <strong>⚠️ WAARSCHUWING:</strong> Dit verwijdert leverancier regels die NIET in deze import zitten.<br/>
+                                Producten zonder leveranciers worden automatisch gearchiveerd!
+                            </div>
+                        </group>
                     </div>
                     
                     <!-- Import Summary -->

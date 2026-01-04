@@ -21,6 +21,28 @@ class ProductSupplierinfo(models.Model):
         readonly=True
     )
     
+    # Price history voor autopublisher
+    previous_price = fields.Float(
+        'Vorige Prijs',
+        readonly=True,
+        help="Prijs van vorige import - voor prijsdaling detectie door autopublisher"
+    )
+    
+    price_change_pct = fields.Float(
+        'Prijswijziging %',
+        compute='_compute_price_change',
+        store=False,
+        help="Percentage wijziging t.o.v. vorige prijs (negatief = daling)"
+    )
+    
+    def _compute_price_change(self):
+        """Bereken prijswijziging percentage voor autopublisher"""
+        for record in self:
+            if record.previous_price and record.previous_price > 0:
+                record.price_change_pct = ((record.price - record.previous_price) / record.previous_price) * 100
+            else:
+                record.price_change_pct = 0.0
+    
     # Product identification fields - inherited from product voor Smart Import matching
     product_name = fields.Char('Product Naam', 
                               related='product_tmpl_id.name', 

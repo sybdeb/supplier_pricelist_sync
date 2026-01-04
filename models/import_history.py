@@ -38,9 +38,10 @@ class ImportHistory(models.Model):
     skipped_count = fields.Integer('Overgeslagen', default=0)
     error_count = fields.Integer('Errors', default=0)
     
-    # Recovery tracking
+    # Recovery tracking voor crash recovery
     retry_count = fields.Integer('Aantal Retries', default=0, help='Aantal keren dat import opnieuw is gestart na timeout/server restart')
     last_processed_row = fields.Integer('Laatst Verwerkte Rij', default=0, help='Voor resume functionaliteit bij server restart')
+    processed_product_ids = fields.Text('Verwerkte Product IDs (JSON)', help='Lijst van product template IDs die succesvol geïmporteerd zijn (voor cleanup)')
     
     # Status
     state = fields.Selection([

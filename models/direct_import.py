@@ -6,6 +6,7 @@ Geen TransientModel One2many issues - Binary field + direct processing
 
 from odoo import models, fields, api
 from odoo.exceptions import UserError, ValidationError
+from datetime import timedelta
 import base64
 import csv
 import io
@@ -99,6 +100,14 @@ class DirectImport(models.TransientModel):
         string='Skip Discontinued',
         default=False,
         help="Als aangevinkt: skip producten gemarkeerd als discontinued in CSV"
+    )
+    
+    # Cleanup options
+    cleanup_old_supplierinfo = fields.Boolean(
+        string='Cleanup Oude Leverancier Regels',
+        default=False,
+        help="Als aangevinkt: verwijder supplierinfo van producten die NIET in deze import zitten.\n"
+             "WAARSCHUWING: Producten zonder leveranciers worden gearchiveerd!"
     )
     
     # Import results
@@ -396,7 +405,8 @@ class DirectImport(models.TransientModel):
                 'updated': 0,
                 'skipped': 0,
                 'errors': [],
-                'history_id': history.id  # Pass history ID for error logging
+                'history_id': history.id,  # Pass history ID for error logging
+                'processed_products': set()  # Track product template IDs (for cleanup)
             }
             
             # Batch processing: process in chunks of 500 rows
@@ -441,6 +451,10 @@ class DirectImport(models.TransientModel):
             # Calculate duration
             duration = time.time() - start_time
             
+            # Save processed product IDs as JSON (voor cleanup)
+            import json
+            processed_ids_json = json.dumps(list(stats.get('processed_products', set())))
+            
             # Update history record
             summary = self._create_import_summary(stats)
             history.write({
@@ -452,6 +466,7 @@ class DirectImport(models.TransientModel):
                 'duration': duration,
                 'summary': summary,
                 'state': 'completed_with_errors' if stats['errors'] else 'completed',
+                'processed_product_ids': processed_ids_json,  # Save voor cleanup
             })
             
             # Update supplier's last sync date
@@ -459,6 +474,14 @@ class DirectImport(models.TransientModel):
                 self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
             except Exception as e:
                 _logger.warning(f"Could not update supplier last_sync_date: {e}")
+            
+            # CLEANUP: Verwijder oude supplierinfo + archiveer producten zonder leveranciers
+            if self.cleanup_old_supplierinfo:
+                cleanup_stats = self._cleanup_old_supplierinfo(stats)
+                summary += f"\n\nCleanup:\n" \
+                          f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
+                          f"- Gearchiveerd: {cleanup_stats['archived']} producten zonder leveranciers"
+                history.write({'summary': summary})
             
             self.import_summary = summary
             
@@ -643,11 +666,83 @@ class DirectImport(models.TransientModel):
         
         # Create or update
         if supplierinfo:
+            # BELANGRIJK: Bewaar oude prijs VOOR update (voor autopublisher prijsdaling detectie)
+            if supplierinfo.price and supplierinfo.price > 0:
+                vals['previous_price'] = supplierinfo.price
+            
             supplierinfo.write(vals)
             stats['updated'] += 1
+            
+            # Log prijswijziging voor debugging
+            if vals.get('previous_price'):
+                new_price = vals.get('price', supplierinfo.price)
+                change_pct = ((ne
+        
+        # Track product template ID (voor cleanup oude supplierinfo)
+        stats.get('processed_products', set()).add(product.product_tmpl_id.id)w_price - vals['previous_price']) / vals['previous_price']) * 100
+                _logger.info(f"Product {product.default_code}: Prijs {vals['previous_price']:.2f} → {new_price:.2f} ({change_pct:+.1f}%)")
         else:
+            # Nieuwe supplierinfo: geen previous_price (eerste keer)
             self.env['product.supplierinfo'].create(vals)
             stats['created'] += 1
+    
+    def _cleanup_old_supplierinfo(self, stats):
+        """
+        Cleanup oude supplierinfo records die NIET in huidige import zaten.
+        Archiveer producten die geen enkele leverancier meer hebben.
+        
+        Returns dict met cleanup statistieken
+        """
+        cleanup_stats = {'removed': 0, 'archived': 0}
+        
+        try:
+            # Verzamel alle product IDs die WEL geïmporteerd zijn
+            imported_product_ids = set()
+            if stats.get('history_id'):
+                # Haal product IDs op van succesvol geïmporteerde rijen
+                # (created + updated, NIET skipped of errors)
+                # Via last_sync_date die we bij elke row zetten
+                recent_supplierinfo = self.env['product.supplierinfo'].search([
+                    ('partner_id', '=', self.supplier_id.id),
+                    ('last_sync_date', '>=', fields.Datetime.now() - timedelta(minutes=5))
+                ])
+                imported_product_ids = set(recent_supplierinfo.mapped('product_tmpl_id').ids)
+            
+            if not imported_product_ids:
+                _logger.warning("No imported products found for cleanup check")
+                return cleanup_stats
+            
+            # Zoek OUDE supplierinfo van deze leverancier die NIET geüpdatet zijn
+            old_supplierinfo = self.env['product.supplierinfo'].search([
+                ('partner_id', '=', self.supplier_id.id),
+                ('product_tmpl_id', 'not in', list(imported_product_ids))
+            ])
+            
+            if old_supplierinfo:
+                affected_products = old_supplierinfo.mapped('product_tmpl_id')
+                
+                # Verwijder oude supplierinfo
+                cleanup_stats['removed'] = len(old_supplierinfo)
+                _logger.info(f"Cleanup: Verwijderen {cleanup_stats['removed']} oude leverancier regels voor {len(affected_products)} producten")
+                old_supplierinfo.unlink()
+                
+                # Check welke producten nu GEEN leveranciers meer hebben
+                for product in affected_products:
+                    remaining_suppliers = self.env['product.supplierinfo'].search_count([
+                        ('product_tmpl_id', '=', product.id)
+                    ])
+                    
+                    if remaining_suppliers == 0 and product.active:
+                        # Geen leveranciers meer → Archiveer product
+                        product.write({'active': False})
+                        cleanup_stats['archived'] += 1
+                        _logger.info(f"Product {product.default_code} gearchiveerd (geen leveranciers meer)")
+            
+            return cleanup_stats
+            
+        except Exception as e:
+            _logger.error(f"Cleanup failed: {e}", exc_info=True)
+            return cleanup_stats
     
     def _convert_field_value(self, model, field_name, string_value):
         """Convert string value to correct field type"""

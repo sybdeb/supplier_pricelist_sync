@@ -11,6 +11,10 @@
                 <field name="supplier_sku" string="Leverancier SKU"/>
                 <field name="order_qty" string="Bestel Hoeveelheid"/>
                 <field name="last_sync_date" string="Laatste Import" readonly="1"/>
+                <field name="previous_price" string="Vorige Prijs" readonly="1" optional="show"/>
+                <field name="price_change_pct" string="Prijswijziging %" readonly="1" optional="show" 
+                       decoration-success="price_change_pct &lt; 0" 
+                       decoration-danger="price_change_pct &gt; 10"/>
             </xpath>
             <!-- Product identification fields voor CSV matching -->
             <xpath expr="//field[@name='order_qty']" position="after">
@@ -29,6 +33,11 @@
         <field name="inherit_id" ref="product.product_supplierinfo_tree_view"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='price']" position="after">
+                <field name="previous_price" string="Vorige Prijs" optional="show"/>
+                <field name="price_change_pct" string="Δ%" optional="show" 
+                       decoration-success="price_change_pct &lt; 0" 
+                       decoration-danger="price_change_pct &gt; 10"
+                       widget="percentage"/>
                 <field name="supplier_stock" string="Voorraad Lev." optional="show"/>
                 <field name="order_qty" optional="hide"/>
                 <field name="supplier_sku" optional="hide"/>
