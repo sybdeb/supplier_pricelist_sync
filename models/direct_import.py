@@ -348,8 +348,8 @@ class DirectImport(models.TransientModel):
         
         # For large imports (>1000 rows), queue as background job
         if row_count > 1000:
-            # Large imports chunking: split into chunks of max 20k rows
-            CHUNK_SIZE = 20000
+            # Large imports chunking: split into chunks of max 10k rows
+            CHUNK_SIZE = 10000
             chunks_needed = (row_count + CHUNK_SIZE - 1) // CHUNK_SIZE  # Ceiling division
             
             _logger.info(f"Large import detected: {row_count} rows. Splitting into {chunks_needed} chunks of max {CHUNK_SIZE} rows each.")
