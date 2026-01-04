@@ -164,10 +164,9 @@ class SupplierImportQueue(models.Model):
                 try:
                     # Use DirectImport's _process_row method
                     # Create temporary wizard instance with supplier context and filter settings
+                    # NOTE: Don't pass csv_file to avoid memory issues with large files
                     temp_wizard = DirectImport.create({
                         'supplier_id': self.supplier_id.id,
-                        'csv_file': self.csv_file,
-                        'csv_filename': self.csv_filename,
                         'skip_out_of_stock': self.skip_out_of_stock,
                         'min_stock_qty': self.min_stock_qty,
                         'skip_zero_price': self.skip_zero_price,
