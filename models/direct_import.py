@@ -364,6 +364,13 @@ class DirectImport(models.TransientModel):
                 'encoding': self.encoding,
                 'csv_separator': self.csv_separator,
                 'mapping': str(mapping),  # Store as string (will eval() later)
+                # Filter settings
+                'skip_out_of_stock': self.skip_out_of_stock,
+                'min_stock_qty': self.min_stock_qty,
+                'skip_zero_price': self.skip_zero_price,
+                'min_price': self.min_price,
+                'skip_discontinued': self.skip_discontinued,
+                'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
             })
             
             return {

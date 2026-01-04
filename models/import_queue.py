@@ -27,6 +27,15 @@ class SupplierImportQueue(models.Model):
     encoding = fields.Char(string='Encoding', default='utf-8')
     csv_separator = fields.Char(string='Separator', default=';')
     mapping = fields.Text(string='Column Mapping', required=True)
+    
+    # Filter settings
+    skip_out_of_stock = fields.Boolean(string='Skip Out of Stock', default=False)
+    min_stock_qty = fields.Integer(string='Minimum Stock Qty', default=0)
+    skip_zero_price = fields.Boolean(string='Skip Zero Price', default=True)
+    min_price = fields.Float(string='Minimum Price', default=0.0)
+    skip_discontinued = fields.Boolean(string='Skip Discontinued', default=False)
+    cleanup_old_supplierinfo = fields.Boolean(string='Cleanup Old Supplierinfo', default=False)
+    
     state = fields.Selection([
         ('queued', 'In Wachtrij'),
         ('processing', 'Bezig'),
@@ -154,11 +163,17 @@ class SupplierImportQueue(models.Model):
                 
                 try:
                     # Use DirectImport's _process_row method
-                    # Create temporary wizard instance with supplier context
+                    # Create temporary wizard instance with supplier context and filter settings
                     temp_wizard = DirectImport.create({
                         'supplier_id': self.supplier_id.id,
                         'csv_file': self.csv_file,
                         'csv_filename': self.csv_filename,
+                        'skip_out_of_stock': self.skip_out_of_stock,
+                        'min_stock_qty': self.min_stock_qty,
+                        'skip_zero_price': self.skip_zero_price,
+                        'min_price': self.min_price,
+                        'skip_discontinued': self.skip_discontinued,
+                        'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
                     })
                     temp_wizard._process_row(row, mapping, stats, row_num)
                     temp_wizard.unlink()  # Clean up temp wizard
