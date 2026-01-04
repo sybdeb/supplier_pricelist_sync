@@ -354,10 +354,10 @@ class DirectImport(models.TransientModel):
             
             _logger.info(f"Large import detected: {row_count} rows. Splitting into {chunks_needed} chunks of max {CHUNK_SIZE} rows each.")
             
-            # Create a parent history record to track overall progress
-            parent_history = self.env['supplier.import.history'].create({
+            # Create ONE shared history record for ALL chunks
+            shared_history = self.env['supplier.import.history'].create({
                 'supplier_id': self.supplier_id.id,
-                'filename': self.csv_filename,
+                'filename': f"{self.csv_filename} ({chunks_needed} delen)",
                 'state': 'queued',
                 'total_rows': row_count,
                 'summary': f'Groot bestand ({row_count} regels) wordt verwerkt in {chunks_needed} delen',
@@ -375,17 +375,11 @@ class DirectImport(models.TransientModel):
                 chunk_file = base64.b64encode(chunk_csv.encode(self.encoding))
                 chunk_row_count = len(chunk_lines) - 1
                 
-                # Create history for this chunk
-                chunk_history = self.env['supplier.import.history'].create({
-                    'supplier_id': self.supplier_id.id,
-                    'filename': f"{self.csv_filename} (deel {chunk_num + 1}/{chunks_needed})",
-                    'state': 'queued',
-                    'total_rows': chunk_row_count,
-                })
+                is_last_chunk = (chunk_num == chunks_needed - 1)
                 
-                # Create queue item for this chunk
+                # Create queue item for this chunk (all share same history!)
                 self.env['supplier.import.queue'].create({
-                    'history_id': chunk_history.id,
+                    'history_id': shared_history.id,
                     'csv_file': chunk_file,
                     'csv_filename': f"{self.csv_filename}_chunk_{chunk_num + 1}",
                     'supplier_id': self.supplier_id.id,
@@ -398,10 +392,10 @@ class DirectImport(models.TransientModel):
                     'skip_zero_price': self.skip_zero_price,
                     'min_price': self.min_price,
                     'skip_discontinued': self.skip_discontinued,
-                    'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo if chunk_num == chunks_needed - 1 else False,  # Only cleanup in last chunk
+                    'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo if is_last_chunk else False,  # Only cleanup in last chunk
                 })
                 
-                _logger.info(f"Created chunk {chunk_num + 1}/{chunks_needed}: rows {start_idx}-{end_idx-1} ({chunk_row_count} rows)")
+                _logger.info(f"Created chunk {chunk_num + 1}/{chunks_needed}: rows {start_idx}-{end_idx-1} ({chunk_row_count} rows) - shared history #{shared_history.id}")
             
             return {
                 'type': 'ir.actions.client',
