@@ -36,6 +36,9 @@ class SupplierImportQueue(models.Model):
     skip_discontinued = fields.Boolean(string='Skip Discontinued', default=False)
     cleanup_old_supplierinfo = fields.Boolean(string='Cleanup Old Supplierinfo', default=False)
     
+    # Shared timestamp for chunked imports (all chunks use same cutoff time)
+    import_session_start = fields.Datetime(string='Import Session Start')
+    
     state = fields.Selection([
         ('queued', 'In Wachtrij'),
         ('processing', 'Bezig'),

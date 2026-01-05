@@ -311,8 +311,8 @@ class DirectImport(models.TransientModel):
     
     def action_import_data(self):
         """
-        Voer de import uit met de geconfigureerde mapping
-        Voor grote imports (>1000 rijen): queue as background job via cron
+        Voer de import uit met de geconfigureerde mapping - NIEUWE BULK ARCHITECTUUR
+        Voor grote imports (>1000 rijen): queue as background job
         Voor kleine imports: direct processing
         """
         self.ensure_one()
@@ -348,77 +348,53 @@ class DirectImport(models.TransientModel):
         
         # For large imports (>1000 rows), queue as background job
         if row_count > 1000:
-            # Large imports chunking: split into chunks of max 10k rows
-            CHUNK_SIZE = 10000
-            chunks_needed = (row_count + CHUNK_SIZE - 1) // CHUNK_SIZE  # Ceiling division
+            _logger.info(f"Large import detected: {row_count} rows. Queuing as background job.")
             
-            _logger.info(f"Large import detected: {row_count} rows. Splitting into {chunks_needed} chunks of max {CHUNK_SIZE} rows each.")
-            
-            # Create ONE shared history record for ALL chunks
-            shared_history = self.env['supplier.import.history'].create({
+            # Create history record for background import
+            history = self.env['supplier.import.history'].create({
                 'supplier_id': self.supplier_id.id,
-                'filename': f"{self.csv_filename} ({chunks_needed} delen)",
+                'filename': self.csv_filename,
                 'state': 'queued',
                 'total_rows': row_count,
-                'summary': f'Groot bestand ({row_count} regels) wordt verwerkt in {chunks_needed} delen',
+                'summary': f'Groot bestand ({row_count} regels) wordt in achtergrond verwerkt',
             })
             
-            header = csv_lines[0]
-            
-            # Split CSV into chunks and create queue items
-            for chunk_num in range(chunks_needed):
-                start_idx = chunk_num * CHUNK_SIZE + 1  # +1 to skip header
-                end_idx = min((chunk_num + 1) * CHUNK_SIZE + 1, len(csv_lines))
-                
-                chunk_lines = [header] + csv_lines[start_idx:end_idx]
-                chunk_csv = '\n'.join(chunk_lines)
-                chunk_file = base64.b64encode(chunk_csv.encode(self.encoding))
-                chunk_row_count = len(chunk_lines) - 1
-                
-                is_last_chunk = (chunk_num == chunks_needed - 1)
-                
-                # Create queue item for this chunk (all share same history!)
-                self.env['supplier.import.queue'].create({
-                    'history_id': shared_history.id,
-                    'csv_file': chunk_file,
-                    'csv_filename': f"{self.csv_filename}_chunk_{chunk_num + 1}",
-                    'supplier_id': self.supplier_id.id,
-                    'encoding': self.encoding,
-                    'csv_separator': self.csv_separator,
-                    'mapping': str(mapping),
-                    # Filter settings
-                    'skip_out_of_stock': self.skip_out_of_stock,
-                    'min_stock_qty': self.min_stock_qty,
-                    'skip_zero_price': self.skip_zero_price,
-                    'min_price': self.min_price,
-                    'skip_discontinued': self.skip_discontinued,
-                    'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo if is_last_chunk else False,  # Only cleanup in last chunk
-                })
-                
-                _logger.info(f"Created chunk {chunk_num + 1}/{chunks_needed}: rows {start_idx}-{end_idx-1} ({chunk_row_count} rows) - shared history #{shared_history.id}")
+            # Create queue item for background processing
+            self.env['supplier.import.queue'].create({
+                'history_id': history.id,
+                'csv_file': self.csv_file,
+                'csv_filename': self.csv_filename,
+                'supplier_id': self.supplier_id.id,
+                'encoding': self.encoding,
+                'csv_separator': self.csv_separator,
+                'mapping': str(mapping),
+                # Filter settings
+                'skip_out_of_stock': self.skip_out_of_stock,
+                'min_stock_qty': self.min_stock_qty,
+                'skip_zero_price': self.skip_zero_price,
+                'min_price': self.min_price,
+                'skip_discontinued': self.skip_discontinued,
+                'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
+            })
             
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
                 'params': {
                     'title': 'Import in wachtrij',
-                    'message': f'Groot bestand ({row_count} regels) wordt verwerkt in {chunks_needed} delen. Check Import History voor voortgang.',
-                    'type': 'info',
-                    'sticky': False,
-                }
-            }
                     'message': f'Import van {row_count} rijen wordt in de achtergrond verwerkt. Check Import History voor status.',
                     'type': 'info',
                     'sticky': False,
                 }
             }
         
-        # For small imports: direct processing (original code)
+        # For small imports: direct processing with new bulk architecture
         return self._execute_import(mapping)
     
     def _execute_import(self, mapping):
         """
-        Execute the actual import - used by both direct and background processing
+        Execute the actual import - NIEUWE BULK ARCHITECTUUR
+        Flow: Pre-scan → Cleanup → Bulk Update → Bulk Create → Archive
         """
         import time
         start_time = time.time()
@@ -430,79 +406,76 @@ class DirectImport(models.TransientModel):
         })
         
         try:
-            # Parse CSV
-            csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
-            csv_reader = csv.DictReader(io.StringIO(csv_data), delimiter=self.csv_separator)
+            # STEP 1: PRE-SCAN CSV - Categorize all products
+            _logger.info("=== STEP 1: PRE-SCAN CSV ===")
+            prescan_data = self._prescan_csv_and_prepare(mapping)
             
-            # Process rows
-            stats = {
-                'total': 0,
-                'created': 0,
-                'updated': 0,
-                'skipped': 0,
-                'errors': [],
-                'history_id': history.id,  # Pass history ID for error logging
-                'processed_products': set()  # Track product template IDs (for cleanup)
-            }
+            total_rows = len(prescan_data['update_codes']) + len(prescan_data['create_codes']) + \
+                        len(prescan_data['filtered']) + len(prescan_data['error_rows'])
             
-            # Batch processing: process in chunks of 500 rows
-            BATCH_SIZE = 500
-            batch_count = 0
+            _logger.info(f"Pre-scan complete: {total_rows} rows analyzed")
+            _logger.info(f"  - Updates: {len(prescan_data['update_codes'])}")
+            _logger.info(f"  - Creates: {len(prescan_data['create_codes'])}")
+            _logger.info(f"  - Deletes: {len(prescan_data['delete_codes'])}")
+            _logger.info(f"  - Filtered: {len(prescan_data['filtered'])}")
+            _logger.info(f"  - Errors: {len(prescan_data['error_rows'])}")
             
-            for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header = 1)
-                stats['total'] += 1
-                # Commit after each batch to prevent timeout
-                if stats["total"] % BATCH_SIZE == 0:
-                    self.env.cr.commit()
-                    batch_count += 1
-                    _logger.info(f"Batch {batch_count} processed ({stats['total']} rows)")
-                    
-                    # Update history with current progress
-                    history.write({
-                        'total_rows': stats['total'],
-                        'created_count': stats['created'],
-                        'updated_count': stats['updated'],
-                        'skipped_count': stats['skipped'],
-                        'error_count': len(stats['errors']),
-                        'duration': time.time() - start_time,
-                        'summary': f"Processing... {stats['total']} rows processed so far ({stats['created']} created, {stats['updated']} updated, {stats['skipped']} skipped, {len(stats['errors'])} errors)",
-                        'state': 'running',
-                    })
-                    self.env.cr.commit()
-                
-                try:
-                    self._process_row(row, mapping, stats, row_num, {
-                        'skip_out_of_stock': self.skip_out_of_stock,
-                        'min_stock_qty': self.min_stock_qty,
-                        'skip_zero_price': self.skip_zero_price,
-                        'min_price': self.min_price,
-                        'skip_discontinued': self.skip_discontinued,
-                    })
-                except Exception as e:
-                    error_msg = str(e)
-                    stats['errors'].append(f"Rij {row_num}: {error_msg}")
-                    stats['skipped'] += 1
-                    _logger.warning(f"Import error on row {row_num}: {e}")
+            # STEP 2: PRE-CLEANUP - Remove old supplierinfo BEFORE processing
+            cleanup_stats = {'removed': 0, 'archived': 0}
+            if self.cleanup_old_supplierinfo:
+                _logger.info("=== STEP 2: PRE-CLEANUP ===")
+                cleanup_stats = self._cleanup_old_supplierinfo(prescan_data, history.id)
+                _logger.info(f"Cleanup: {cleanup_stats['removed']} removed, {cleanup_stats['archived']} archived")
+            
+            # STEP 3: BULK UPDATE - SQL CASE statements for existing supplierinfo
+            updated_count = 0
+            if prescan_data['update_codes']:
+                _logger.info("=== STEP 3: BULK UPDATE ===")
+                updated_count = self._bulk_update_supplierinfo(prescan_data, mapping)
+                _logger.info(f"Bulk update: {updated_count} records updated")
+            
+            # STEP 4: BULK CREATE - ORM creates for new supplierinfo
+            created_count = 0
+            if prescan_data['create_codes']:
+                _logger.info("=== STEP 4: BULK CREATE ===")
+                created_count = self._bulk_create_supplierinfo(prescan_data, mapping)
+                _logger.info(f"Bulk create: {created_count} records created")
+            
+            # STEP 5: POST-PROCESS - Archive products without suppliers
+            archived_count = 0
+            if self.cleanup_old_supplierinfo:
+                _logger.info("=== STEP 5: POST-PROCESS ===")
+                archived_count = self._archive_products_without_suppliers()
+                _logger.info(f"Post-process: {archived_count} products archived")
             
             # Calculate duration
             duration = time.time() - start_time
             
-            # Save processed product IDs as JSON (voor cleanup)
-            import json
-            processed_ids_json = json.dumps(list(stats.get('processed_products', set())))
+            # Build summary
+            stats = {
+                'total': total_rows,
+                'created': created_count,
+                'updated': updated_count,
+                'skipped': len(prescan_data['filtered']),
+                'errors': prescan_data['error_rows'],
+            }
+            summary = self._create_import_summary(stats)
+            
+            if self.cleanup_old_supplierinfo:
+                summary += f"\n\nCleanup:\n" \
+                          f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
+                          f"- Gearchiveerd: {cleanup_stats['archived']} + {archived_count} producten"
             
             # Update history record
-            summary = self._create_import_summary(stats)
             history.write({
-                'total_rows': stats['total'],
-                'created_count': stats['created'],
-                'updated_count': stats['updated'],
-                'skipped_count': stats['skipped'],
-                'error_count': len(stats['errors']),
+                'total_rows': total_rows,
+                'created_count': created_count,
+                'updated_count': updated_count,
+                'skipped_count': len(prescan_data['filtered']),
+                'error_count': len(prescan_data['error_rows']),
                 'duration': duration,
                 'summary': summary,
-                'state': 'completed_with_errors' if stats['errors'] else 'completed',
-                'processed_product_ids': processed_ids_json,  # Save voor cleanup
+                'state': 'completed_with_errors' if prescan_data['error_rows'] else 'completed',
             })
             
             # Update supplier's last sync date
@@ -511,18 +484,12 @@ class DirectImport(models.TransientModel):
             except Exception as e:
                 _logger.warning(f"Could not update supplier last_sync_date: {e}")
             
-            # CLEANUP: Verwijder oude supplierinfo + archiveer producten zonder leveranciers
-            if self.cleanup_old_supplierinfo:
-                cleanup_stats = self._cleanup_old_supplierinfo(stats)
-                summary += f"\n\nCleanup:\n" \
-                          f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
-                          f"- Gearchiveerd: {cleanup_stats['archived']} producten zonder leveranciers"
-                history.write({'summary': summary})
-            
             self.import_summary = summary
             
             # AUTO-SAVE mapping as template for this supplier
             self._auto_save_mapping_template(mapping)
+            
+            _logger.info(f"=== IMPORT COMPLETE: {duration:.1f}s, {total_rows/duration:.0f} rows/sec ===")
             
             # Close wizard and show notification
             return {
@@ -536,250 +503,225 @@ class DirectImport(models.TransientModel):
                     'state': 'failed',
                     'summary': f"Import failed: {str(e)}",
                 })
+            _logger.error(f"Import failed: {e}", exc_info=True)
             raise UserError(f"Import failed: {str(e)}")
     
-    def _process_row(self, row, mapping, stats, row_num=0, skip_conditions=None):
+    def _cleanup_old_supplierinfo(self, prescan_data, history_id):
         """
-        Process single CSV row met DYNAMISCHE field mapping
-        Mapping format: {'csv_column': 'model.fieldname', ...}
-        + Error logging voor niet gevonden producten
-        + Skip conditions for filtering rows
-        """
-        # Default skip conditions if not provided
-        if skip_conditions is None:
-            skip_conditions = {
-                'skip_out_of_stock': False,
-                'min_stock_qty': 0,
-                'skip_zero_price': True,
-                'min_price': 0.0,
-                'skip_discontinued': False,
-            }
+        PRE-CLEANUP: Verwijder oude supplierinfo VOOR processing
+        Alle EANs die NIET in CSV staan worden verwijderd
         
-        # Separate mappings by model
-        product_fields = {}  # Fields to update on product.product
-        supplierinfo_fields = {}  # Fields to create/update on product.supplierinfo
-        
-        # Matching fields for product lookup
-        barcode = None
-        product_code = None
-        
-        # Parse mapping and extract values
-        for csv_col, odoo_field in mapping.items():
-            if not odoo_field:
-                continue
+        Args:
+            prescan_data: Dict met update_codes, create_codes, etc.
+            history_id: ID van import history record
             
-            # Get value from CSV row using csv_column as key
-            value = row.get(csv_col, '').strip()
-            
-            # DEBUG: Log price field specifically
-            if 'price' in odoo_field.lower():
-                _logger.info(f"Processing price field: CSV col '{csv_col}' = '{value}' -> {odoo_field}")
-            
-            if not value:
-                continue
-            
-            # Split model.field format
-            if '.' not in odoo_field:
-                continue  # Skip invalid format
-            
-            model, field = odoo_field.split('.', 1)
-            
-            # Convert value based on field type
-            converted_value = self._convert_field_value(model, field, value)
-            
-            # DEBUG: Log price field specifically after conversion
-            if 'price' in odoo_field.lower():
-                _logger.info(f"Converted price field: '{value}' -> {converted_value} (type: {type(converted_value)})")
-            
-            if model == 'product':
-                # Special handling for matching fields
-                if field == 'barcode':
-                    barcode = value
-                elif field == 'default_code':
-                    product_code = value
-                else:
-                    product_fields[field] = converted_value
-            elif model == 'supplierinfo':
-                supplierinfo_fields[field] = converted_value
-        
-        # APPLY SKIP CONDITIONS
-        # Check stock quantity skip conditions
-        if skip_conditions.get('skip_out_of_stock') or skip_conditions.get('min_stock_qty', 0) > 0:
-            stock_qty = supplierinfo_fields.get('supplier_stock', 0)
-            if skip_conditions.get('skip_out_of_stock') and stock_qty == 0:
-                stats['skipped'] += 1
-                _logger.info(f"Row {row_num}: Skipped - out of stock (qty={stock_qty})")
-                return
-            if skip_conditions.get('min_stock_qty', 0) > 0 and stock_qty < skip_conditions['min_stock_qty']:
-                stats['skipped'] += 1
-                _logger.info(f"Row {row_num}: Skipped - below minimum stock (qty={stock_qty}, min={skip_conditions['min_stock_qty']})")
-                return
-        
-        # Check price skip conditions
-        if skip_conditions.get('skip_zero_price') or skip_conditions.get('min_price', 0.0) > 0.0:
-            price = supplierinfo_fields.get('price', 0.0)
-            if skip_conditions.get('skip_zero_price') and price == 0.0:
-                stats['skipped'] += 1
-                _logger.info(f"Row {row_num}: Skipped - zero price")
-                return
-            if skip_conditions.get('min_price', 0.0) > 0.0 and price < skip_conditions['min_price']:
-                stats['skipped'] += 1
-                _logger.info(f"Row {row_num}: Skipped - below minimum price (price={price}, min={skip_conditions['min_price']})")
-                return
-        
-        # Check discontinued skip condition  
-        if skip_conditions.get('skip_discontinued'):
-            # Check if there's a discontinued field in product_fields
-            if product_fields.get('discontinued') or product_fields.get('is_discontinued'):
-                stats['skipped'] += 1
-                _logger.info(f"Row {row_num}: Skipped - product marked as discontinued")
-                return
-        
-        # STEP 1: Product lookup (priority: barcode > product_code)
-        # BELANGRIJK: Zoek ook in inactive producten (voor reactivatie)
-        _logger.info(f"Row {row_num}: Looking up product - barcode='{barcode}', product_code='{product_code}'")
-        product = None
-        if barcode:
-            product = self.env['product.product'].with_context(active_test=False).search([('barcode', '=', barcode)], limit=1)
-            _logger.info(f"Row {row_num}: Barcode search for '{barcode}' found: {product.id if product else 'None'}")
-        
-        if not product and product_code:
-            product = self.env['product.product'].with_context(active_test=False).search([('default_code', '=', product_code)], limit=1)
-        
-        if not product:
-            # LOG ERROR: Product niet gevonden
-            # Extract brand from product_fields (could be in various field names)
-            brand = product_fields.get('x_studio_merk', '') or \
-                    product_fields.get('product_brand_id', '') or \
-                    product_fields.get('brand', '') or ''
-            
-            if stats.get('history_id'):
-                import json
-                self.env['supplier.import.error'].create({
-                    'history_id': stats['history_id'],
-                    'row_number': row_num,
-                    'error_type': 'product_not_found',
-                    'barcode': barcode or '',
-                    'product_code': product_code or '',
-                    'product_name': product_fields.get('name', ''),
-                    'brand': str(brand) if brand else '',
-                    'csv_data': json.dumps(dict(row)),
-                    'error_message': f"Product niet gevonden met EAN: {barcode}, SKU: {product_code}",
-                })
-            raise ValidationError(f"Product niet gevonden (EAN: {barcode}, SKU: {product_code})")
-        
-        # STEP 2: Update product fields (if any)
-        if product_fields:
-            try:
-                product.write(product_fields)
-            except Exception as e:
-                _logger.warning(f"Could not update product {product.default_code}: {e}")
-        
-        # STEP 2.5: Reactiveer product als het gearchiveerd was
-        if not product.active or not product.product_tmpl_id.active:
-            _logger.info(f"Reactiveren product {product.default_code} (was gearchiveerd)")
-            product.write({'active': True})
-            if not product.product_tmpl_id.active:
-                product.product_tmpl_id.write({'active': True})
-        
-        # STEP 3: Create/Update supplierinfo
-        price = supplierinfo_fields.get('price', 0.0)
-        if not price or price == 0.0:
-            raise ValidationError(f"Geen (geldige) prijs gevonden voor product {product.default_code}")
-        
-        # Search existing supplierinfo
-        supplierinfo = self.env['product.supplierinfo'].search([
-            ('product_tmpl_id', '=', product.product_tmpl_id.id),
-            ('partner_id', '=', self.supplier_id.id)
-        ], limit=1)
-        
-        # Prepare supplierinfo values
-        vals = {
-            'partner_id': self.supplier_id.id,
-            'product_tmpl_id': product.product_tmpl_id.id,
-            'last_sync_date': fields.Datetime.now(),  # Track import date
-            **supplierinfo_fields
-        }
-        
-        # Create or update
-        if supplierinfo:
-            # BELANGRIJK: Bewaar oude prijs VOOR update (voor autopublisher prijsdaling detectie)
-            if supplierinfo.price and supplierinfo.price > 0:
-                vals['previous_price'] = supplierinfo.price
-            
-            supplierinfo.write(vals)
-            stats['updated'] += 1
-            
-            # Log prijswijziging voor debugging
-            if vals.get('previous_price'):
-                new_price = vals.get('price', supplierinfo.price)
-                change_pct = ((new_price - vals['previous_price']) / vals['previous_price']) * 100
-                _logger.info(f"Product {product.default_code}: Prijs {vals['previous_price']:.2f} → {new_price:.2f} ({change_pct:+.1f}%)")
-        else:
-            # Nieuwe supplierinfo: geen previous_price (eerste keer)
-            self.env['product.supplierinfo'].create(vals)
-            stats['created'] += 1
-        
-        # Track product template ID (voor cleanup oude supplierinfo)
-        stats.get('processed_products', set()).add(product.product_tmpl_id.id)
-    
-    def _cleanup_old_supplierinfo(self, stats):
-        """
-        Cleanup oude supplierinfo records die NIET in huidige import zaten.
-        Archiveer producten die geen enkele leverancier meer hebben.
-        
-        Returns dict met cleanup statistieken
+        Returns:
+            Dict met cleanup statistieken {'removed': X, 'archived': Y}
         """
         cleanup_stats = {'removed': 0, 'archived': 0}
         
         try:
-            # Verzamel alle product IDs die WEL geïmporteerd zijn
-            imported_product_ids = set()
-            if stats.get('history_id'):
-                # Haal product IDs op van succesvol geïmporteerde rijen
-                # (created + updated, NIET skipped of errors)
-                # Via last_sync_date die we bij elke row zetten
-                recent_supplierinfo = self.env['product.supplierinfo'].search([
-                    ('partner_id', '=', self.supplier_id.id),
-                    ('last_sync_date', '>=', fields.Datetime.now() - timedelta(minutes=5))
-                ])
-                imported_product_ids = set(recent_supplierinfo.mapped('product_tmpl_id').ids)
+            # Alle EANs die WEL in CSV staan (updates + creates)
+            csv_eans = set(prescan_data['update_codes'].keys()) | set(prescan_data['create_codes'].keys())
             
-            if not imported_product_ids:
-                _logger.warning("No imported products found for cleanup check")
+            if not csv_eans:
+                _logger.warning("No valid EANs in CSV for cleanup check")
                 return cleanup_stats
             
-            # Zoek OUDE supplierinfo van deze leverancier die NIET geüpdatet zijn
-            old_supplierinfo = self.env['product.supplierinfo'].search([
-                ('partner_id', '=', self.supplier_id.id),
-                ('product_tmpl_id', 'not in', list(imported_product_ids))
+            # Find all products for this supplier that are NOT in the CSV
+            # BELANGRIJK: Zoek ook in inactive products
+            all_products = self.env['product.product'].with_context(active_test=False).search([
+                ('barcode', '!=', False)
             ])
             
-            if old_supplierinfo:
-                affected_products = old_supplierinfo.mapped('product_tmpl_id')
+            # Filter: alleen producten met supplierinfo van deze leverancier
+            supplier_products = all_products.filtered(
+                lambda p: any(si.partner_id.id == self.supplier_id.id for si in p.product_tmpl_id.seller_ids)
+            )
+            
+            # Determine which products should be deleted (not in CSV)
+            products_to_delete = supplier_products.filtered(lambda p: p.barcode not in csv_eans)
+            
+            if products_to_delete:
+                _logger.info(f"Pre-cleanup: {len(products_to_delete)} products not in CSV, removing their supplierinfo")
                 
-                # Verwijder oude supplierinfo
+                # Delete supplierinfo for these products
+                old_supplierinfo = self.env['product.supplierinfo'].search([
+                    ('partner_id', '=', self.supplier_id.id),
+                    ('product_tmpl_id', 'in', products_to_delete.mapped('product_tmpl_id').ids)
+                ])
+                
                 cleanup_stats['removed'] = len(old_supplierinfo)
-                _logger.info(f"Cleanup: Verwijderen {cleanup_stats['removed']} oude leverancier regels voor {len(affected_products)} producten")
                 old_supplierinfo.unlink()
-                
-                # Check welke producten nu GEEN leveranciers meer hebben
-                for product in affected_products:
-                    remaining_suppliers = self.env['product.supplierinfo'].search_count([
-                        ('product_tmpl_id', '=', product.id)
-                    ])
-                    
-                    if remaining_suppliers == 0 and product.active:
-                        # Geen leveranciers meer → Archiveer product
-                        product.write({'active': False})
-                        cleanup_stats['archived'] += 1
-                        _logger.info(f"Product {product.default_code} gearchiveerd (geen leveranciers meer)")
+                _logger.info(f"Pre-cleanup: Removed {cleanup_stats['removed']} old supplierinfo records")
             
             return cleanup_stats
             
         except Exception as e:
-            _logger.error(f"Cleanup failed: {e}", exc_info=True)
+            _logger.error(f"Pre-cleanup failed: {e}", exc_info=True)
             return cleanup_stats
+    
+    def _bulk_update_supplierinfo(self, prescan_data, mapping):
+        """
+        BULK UPDATE: Update bestaande supplierinfo met SQL CASE statements
+        Veel sneller dan row-by-row ORM updates (500 rows per query)
+        
+        Args:
+            prescan_data: Dict met update_codes (EAN -> product_tmpl_id) en row_data
+            mapping: CSV mapping configuration
+            
+        Returns:
+            Number of records updated
+        """
+        if not prescan_data['update_codes']:
+            return 0
+        
+        updated_count = 0
+        BATCH_SIZE = 500
+        
+        # Get all EANs to update
+        update_eans = list(prescan_data['update_codes'].keys())
+        
+        # Process in batches
+        for batch_start in range(0, len(update_eans), BATCH_SIZE):
+            batch_eans = update_eans[batch_start:batch_start + BATCH_SIZE]
+            
+            # Build SQL CASE statements for each field
+            case_statements = {}
+            
+            # Collect all supplierinfo fields from mapping
+            supplierinfo_fields = [field.split('.')[1] for field in mapping.values() 
+                                  if field.startswith('supplierinfo.')]
+            
+            for field in supplierinfo_fields:
+                case_parts = []
+                for ean in batch_eans:
+                    row_data = prescan_data['row_data'].get(ean, {})
+                    value = row_data.get(field)
+                    if value is not None:
+                        # Get product_tmpl_id for this EAN
+                        product_tmpl_id = prescan_data['update_codes'][ean]
+                        
+                        # Format value for SQL
+                        if isinstance(value, str):
+                            value_sql = f"'{value}'"
+                        elif isinstance(value, (int, float)):
+                            value_sql = str(value)
+                        else:
+                            value_sql = "NULL"
+                        
+                        case_parts.append(f"WHEN product_tmpl_id = {product_tmpl_id} THEN {value_sql}")
+                
+                if case_parts:
+                    case_statements[field] = " ".join(case_parts)
+            
+            # Add previous_price tracking (for price changes)
+            if 'price' in case_statements:
+                case_statements['previous_price'] = "price"  # Save current price as previous
+            
+            # Add last_sync_date
+            case_statements['last_sync_date'] = f"'{fields.Datetime.now()}'"
+            
+            # Build and execute SQL UPDATE
+            if case_statements:
+                product_tmpl_ids = [prescan_data['update_codes'][ean] for ean in batch_eans]
+                
+                set_clauses = []
+                for field, case_expr in case_statements.items():
+                    if field == 'last_sync_date':
+                        set_clauses.append(f"{field} = {case_expr}")
+                    elif field == 'previous_price':
+                        set_clauses.append(f"{field} = {case_expr}")
+                    else:
+                        set_clauses.append(f"{field} = CASE {case_expr} ELSE {field} END")
+                
+                sql = f"""UPDATE product_supplierinfo 
+                         SET {', '.join(set_clauses)}
+                         WHERE partner_id = %s AND product_tmpl_id IN %s"""
+                
+                self.env.cr.execute(sql, (self.supplier_id.id, tuple(product_tmpl_ids)))
+                updated_count += self.env.cr.rowcount
+                
+                # Commit every batch
+                self.env.cr.commit()
+                _logger.info(f"Bulk update batch {batch_start//BATCH_SIZE + 1}: {self.env.cr.rowcount} records")
+        
+        return updated_count
+    
+    def _bulk_create_supplierinfo(self, prescan_data, mapping):
+        """
+        BULK CREATE: Create nieuwe supplierinfo met ORM create()
+        Gebruikt ORM voor betere data validatie en triggers
+        
+        Args:
+            prescan_data: Dict met create_codes (EAN -> product_tmpl_id) en row_data
+            mapping: CSV mapping configuration
+            
+        Returns:
+            Number of records created
+        """
+        if not prescan_data['create_codes']:
+            return 0
+        
+        create_vals_list = []
+        
+        for ean, product_tmpl_id in prescan_data['create_codes'].items():
+            row_data = prescan_data['row_data'].get(ean, {})
+            
+            # Build vals dict for this supplierinfo
+            vals = {
+                'partner_id': self.supplier_id.id,
+                'product_tmpl_id': product_tmpl_id,
+                'last_sync_date': fields.Datetime.now(),
+            }
+            
+            # Add all supplierinfo fields from mapping
+            for csv_col, odoo_field in mapping.items():
+                if odoo_field.startswith('supplierinfo.'):
+                    field_name = odoo_field.split('.')[1]
+                    value = row_data.get(field_name)
+                    if value is not None:
+                        vals[field_name] = value
+            
+            # Validate price
+            if vals.get('price', 0.0) > 0:
+                create_vals_list.append(vals)
+            else:
+                _logger.warning(f"Skipping create for EAN {ean}: no valid price")
+        
+        # Bulk create all at once
+        if create_vals_list:
+            self.env['product.supplierinfo'].create(create_vals_list)
+            _logger.info(f"Bulk create: {len(create_vals_list)} new supplierinfo records")
+        
+        return len(create_vals_list)
+    
+    def _archive_products_without_suppliers(self):
+        """
+        POST-PROCESS: Archiveer producten die geen enkele leverancier meer hebben
+        Dit gebeurt NA cleanup en updates
+        
+        Returns:
+            Number of products archived
+        """
+        archived_count = 0
+        
+        try:
+            # Find active products without any supplierinfo
+            products_without_suppliers = self.env['product.template'].search([
+                ('active', '=', True),
+                ('seller_ids', '=', False)
+            ])
+            
+            if products_without_suppliers:
+                products_without_suppliers.write({'active': False})
+                archived_count = len(products_without_suppliers)
+                _logger.info(f"Post-process: Archived {archived_count} products without suppliers")
+        
+        except Exception as e:
+            _logger.error(f"Post-process archival failed: {e}", exc_info=True)
+        
+        return archived_count
     
     def _convert_field_value(self, model, field_name, string_value):
         """Convert string value to correct field type"""
@@ -1048,4 +990,140 @@ class DirectImportMappingLine(models.TransientModel):
             _logger.warning(f"Could not load product fields: {e}")
         
         return fields_list
+
+    # =========================================================================
+    # BULK IMPORT OPTIMIZATION METHODS
+    # =========================================================================
+    
+    def _prescan_csv_and_prepare(self, mapping):
+        """
+        Pre-scan CSV file to identify:
+        - Products that need updates (existing supplierinfo)
+        - Products that need creates (product exists, no supplierinfo)
+        - Products with unknown EAN (errors)
+        - Products to skip (filters)
+        - Products to delete (not in CSV)
+        
+        Returns: dict with categorized product codes
+        """
+        import csv
+        import io
+        
+        _logger.info(f"[BULK] Pre-scanning CSV for supplier {self.supplier_id.name}")
+        
+        # Parse CSV
+        csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
+        csv_reader = csv.DictReader(io.StringIO(csv_data), delimiter=self.csv_separator)
+        
+        # Track categories
+        good_products = {}  # {product_code: row_data}
+        new_eans = []  # [{ean, sku, brand, name, ...}]
+        filtered_products = []  # Skipped due to filters
+        
+        ean_column = None
+        sku_column = None
+        price_column = None
+        stock_column = None
+        
+        # Find column mappings
+        for csv_col, odoo_field in mapping.items():
+            if odoo_field == 'product.barcode':
+                ean_column = csv_col
+            elif odoo_field == 'supplierinfo.product_code':
+                sku_column = csv_col
+            elif odoo_field == 'supplierinfo.price':
+                price_column = csv_col
+            elif odoo_field == 'product.qty_available':
+                stock_column = csv_col
+        
+        _logger.info(f"[BULK] Columns: EAN={ean_column}, SKU={sku_column}, Price={price_column}, Stock={stock_column}")
+        
+        # Collect all EANs and product codes from CSV
+        csv_eans = set()
+        csv_product_codes = set()
+        row_data_by_code = {}
+        
+        for row_num, row in enumerate(csv_reader, start=2):
+            ean = row.get(ean_column, '').strip() if ean_column else None
+            product_code = row.get(sku_column, '').strip() if sku_column else None
+            price = float(row.get(price_column, 0)) if price_column and row.get(price_column) else 0.0
+            stock = float(row.get(stock_column, 0)) if stock_column and row.get(stock_column) else 0.0
+            
+            if not ean and not product_code:
+                continue  # Skip empty rows
+            
+            # Apply filters
+            skip_reason = None
+            if self.skip_out_of_stock and stock < self.min_stock_qty:
+                skip_reason = f"Out of stock (stock={stock} < {self.min_stock_qty})"
+            elif self.skip_zero_price and price < self.min_price:
+                skip_reason = f"Price too low (price={price} < {self.min_price})"
+            
+            if skip_reason:
+                filtered_products.append({
+                    'row': row_num,
+                    'ean': ean,
+                    'sku': product_code,
+                    'reason': skip_reason
+                })
+                continue
+            
+            # Track this product
+            if ean:
+                csv_eans.add(ean)
+            if product_code:
+                csv_product_codes.add(product_code)
+                row_data_by_code[product_code] = row
+        
+        _logger.info(f"[BULK] CSV contains {len(csv_eans)} unique EANs, {len(csv_product_codes)} unique SKUs")
+        _logger.info(f"[BULK] Filtered out {len(filtered_products)} products")
+        
+        # Check which EANs exist in database
+        existing_products = self.env['product.product'].search([
+            ('barcode', 'in', list(csv_eans))
+        ])
+        existing_eans = set(existing_products.mapped('barcode'))
+        new_ean_set = csv_eans - existing_eans
+        
+        _logger.info(f"[BULK] Found {len(existing_products)} existing products, {len(new_ean_set)} new EANs")
+        
+        # Check which product codes have existing supplierinfo
+        existing_supplierinfo = self.env['product.supplierinfo'].search([
+            ('partner_id', '=', self.supplier_id.id)
+        ])
+        existing_si_codes = set(existing_supplierinfo.mapped('product_code'))
+        
+        _logger.info(f"[BULK] Found {len(existing_si_codes)} existing supplierinfo records for this supplier")
+        
+        # Categorize products
+        update_codes = csv_product_codes & existing_si_codes
+        create_codes = csv_product_codes - existing_si_codes
+        delete_codes = existing_si_codes - csv_product_codes
+        
+        _logger.info(f"[BULK] Categories: {len(update_codes)} updates, {len(create_codes)} creates, {len(delete_codes)} deletes")
+        
+        # Collect new EAN errors
+        for ean in new_ean_set:
+            # Find row data for this EAN
+            for code, row in row_data_by_code.items():
+                if row.get(ean_column) == ean:
+                    new_eans.append({
+                        'ean': ean,
+                        'sku': code,
+                        'brand': row.get(mapping.get('product.brand', ''), ''),
+                        'name': row.get(mapping.get('product.name', ''), ''),
+                        'price': row.get(price_column, ''),
+                        'stock': row.get(stock_column, ''),
+                    })
+                    break
+        
+        return {
+            'update_codes': list(update_codes),
+            'create_codes': list(create_codes),
+            'delete_codes': list(delete_codes),
+            'new_eans': new_eans,
+            'filtered': filtered_products,
+            'row_data': row_data_by_code,
+        }
+
 
