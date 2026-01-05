@@ -1,7 +1,7 @@
 {
-    "name": "Supplier Pricelist Sync v3.0 (Bulk Import Optimization)",
-    "version": "19.0.3.0.1",
-    "summary": "Direct supplier pricelist import with batch processing (250 rows)",
+    "name": "Supplier Pricelist Sync v3.1 (Hub Integration)",
+    "version": "19.0.3.1.1",
+    "summary": "Direct supplier pricelist import with Odoo standard fields + error logging",
     "description": """
 Direct Supplier Pricelist Import System:
 - Central Dashboard - Import management per supplier
@@ -20,7 +20,7 @@ Built for Odoo 19 Community Edition
     "website": "https://nerbys.nl",
     "license": "LGPL-3",
     "category": "Purchases",
-    "depends": ["base", "product", "purchase", "mail"],
+    "depends": ["base", "product", "purchase", "mail", "dbw_odoo_base_v2"],
     "data": [
         "security/ir.model.access.csv",
         "data/import_queue_cron.xml",

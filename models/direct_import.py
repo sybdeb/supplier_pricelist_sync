@@ -262,12 +262,9 @@ class DirectImport(models.TransientModel):
             return 'supplierinfo.supplier_stock'
         
         # MINIMALE BESTEL HOEVEELHEID (MOQ)
-        if col_lower in ['min_qty', 'moq', 'minimum_order_quantity', 'min_quantity', 'minimum_qty']:
+        if col_lower in ['min_qty', 'moq', 'minimum_order_quantity', 'min_quantity', 'minimum_qty',
+                         'order_qty', 'bestel_aantal', 'order_quantity', 'verpakkingseenheid']:
             return 'supplierinfo.min_qty'
-        
-        # BESTEL AANTAL (order quantity - vaak gebruikt voor verpakkingseenheden)
-        if col_lower in ['order_qty', 'bestel_aantal', 'order_quantity', 'verpakkingseenheid']:
-            return 'supplierinfo.order_qty'
         
         if col_lower in ['levertijd', 'delivery_time', 'lead_time', 'days', 'delay']:
             return 'supplierinfo.delay'
@@ -466,6 +463,27 @@ class DirectImport(models.TransientModel):
                 'state': 'completed_with_errors' if prescan_data['error_rows'] else 'completed',
             })
             
+            # Save errors to database
+            if prescan_data['error_rows']:
+                _logger.info(f"Saving {len(prescan_data['error_rows'])} errors to database")
+                for error_data in prescan_data['error_rows']:
+                    try:
+                        self.env['supplier.import.error'].create({
+                            'history_id': history.id,
+                            'row_number': error_data.get('row', 0),
+                            'error_type': 'product_not_found',
+                            'barcode': error_data.get('barcode', ''),
+                            'product_code': error_data.get('product_code', ''),
+                            'product_name': error_data.get('product_name', ''),
+                            'brand': error_data.get('brand', ''),
+                            'csv_data': json.dumps(error_data.get('row_data', {})) if error_data.get('row_data') else '',
+                            'error_message': error_data.get('error', 'Unknown error'),
+                        })
+                    except Exception as e:
+                        _logger.error(f"Could not save error record: {e}")
+                self.env.cr.commit()
+                _logger.info("Errors saved successfully")
+            
             # Update supplier's last sync date
             try:
                 self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
@@ -552,7 +570,15 @@ class DirectImport(models.TransientModel):
                 product_code = row.get(code_col, '').strip() if code_col else None
                 
                 if not barcode and not product_code:
-                    prescan_data['error_rows'].append({'row': row_num, 'error': 'No barcode or product code'})
+                    prescan_data['error_rows'].append({
+                        'row': row_num,
+                        'barcode': '',
+                        'product_code': '',
+                        'product_name': '',
+                        'brand': '',
+                        'row_data': row,
+                        'error': 'No barcode or product code'
+                    })
                     continue
                 
                 # Parse all fields for this row
@@ -580,7 +606,15 @@ class DirectImport(models.TransientModel):
                 prescan_data['row_data'][product_key] = row_data
                 
             except Exception as e:
-                prescan_data['error_rows'].append({'row': row_num, 'error': str(e)})
+                prescan_data['error_rows'].append({
+                    'row': row_num,
+                    'barcode': row.get(barcode_col, '').strip() if barcode_col else '',
+                    'product_code': row.get(code_col, '').strip() if code_col else '',
+                    'product_name': '',
+                    'brand': '',
+                    'row_data': row,
+                    'error': str(e)
+                })
                 _logger.warning(f"Error pre-scanning row {row_num}: {e}")
         
         return prescan_data
@@ -793,9 +827,14 @@ class DirectImport(models.TransientModel):
                         ], limit=1)
                     
                     if not product:
-                        # Log error - product doesn't exist
+                        # Log error with full details
                         prescan_data['error_rows'].append({
                             'row': row_data.get('_row_num'),
+                            'barcode': barcode or '',
+                            'product_code': product_code or '',
+                            'product_name': row_data.get('product_fields', {}).get('name', ''),
+                            'brand': str(row_data.get('product_fields', {}).get('x_studio_merk', '')),
+                            'row_data': row_data,
                             'error': f'Product not found: {barcode or product_code}'
                         })
                         _logger.warning(f"Cannot create supplierinfo - product not found: {barcode or product_code}")

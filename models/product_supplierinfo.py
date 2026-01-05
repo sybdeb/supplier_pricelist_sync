@@ -10,9 +10,7 @@ class ProductSupplierinfo(models.Model):
     price = fields.Float('Ink.Prijs', help="Purchase price from this supplier")
     
     # Extra supplier fields voor CSV import
-    order_qty = fields.Float('Bestel Aantal', default=0.0, help="Minimum order quantity from supplier")
     supplier_stock = fields.Float('Voorraad Lev.', default=0.0, help="Current stock at supplier")  
-    supplier_sku = fields.Char('Art.nr Lev.', help="Supplier's internal SKU/article number")
     
     # Import tracking
     last_sync_date = fields.Datetime(
