@@ -87,7 +87,7 @@ class SmartImport(models.TransientModel):
                     if columns_per_line and max(columns_per_line) > max_columns and len(set(columns_per_line)) <= 2:
                         max_columns = max(columns_per_line)
                         best_delimiter = delimiter
-                except:
+                except Exception:
                     continue
             
             _logger.info(f"Detected delimiter: '{best_delimiter}' with {max_columns} columns")
@@ -429,7 +429,7 @@ class SmartImport(models.TransientModel):
             })
             
             # Show results
-            message = f"Import completed!\n\n"
+            message = "Import completed!\n\n"
             message += f"✅ Successfully imported: {imported_count} records\n"
             if error_count > 0:
                 message += f"❌ Errors: {error_count} records\n\n"
@@ -585,7 +585,7 @@ class SmartImport(models.TransientModel):
                     # Convert to float
                     try:
                         record_data['price'] = float(cell_value.replace(',', '.'))
-                    except:
+                    except (ValueError, AttributeError):
                         record_data['price'] = 0.0
                 elif field_name == 'product_name':
                     record_data['product_name'] = cell_value
@@ -641,7 +641,7 @@ class SmartImport(models.TransientModel):
             raise UserError("Er zijn geen kolommen om op te slaan. Upload eerst een CSV bestand.")
         
         # Count configured mappings
-        configured_lines = self.mapping_lines.filtered(lambda l: l.odoo_field)
+        configured_lines = self.mapping_lines.filtered(lambda line: line.odoo_field)
         if not configured_lines:
             raise UserError("Configureer eerst minimaal één kolom mapping voordat je opslaat")
         

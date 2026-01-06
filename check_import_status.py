@@ -22,7 +22,7 @@ def check_import_status(env):
     recent_done = ImportQueue.search([('state', '=', 'done')], limit=5, order='create_date desc')
     recent_failed = ImportQueue.search([('state', '=', 'failed')], limit=5, order='create_date desc')
     
-    print(f"📊 QUEUE STATUS:")
+    print("📊 QUEUE STATUS:")
     print(f"   - Processing: {len(processing)}")
     print(f"   - Queued: {len(queued)}")
     print(f"   - Recent done: {len(recent_done)}")
@@ -39,7 +39,7 @@ def check_import_status(env):
             print(f"   Filename: {item.csv_filename}")
             print(f"   Started: {history.import_date}")
             print(f"   Duration: {history.duration:.1f}s")
-            print(f"   Progress:")
+            print("   Progress:")
             print(f"      - Total rows: {history.total_rows}")
             print(f"      - Created: {history.created_count}")
             print(f"      - Updated: {history.updated_count}")
@@ -49,7 +49,7 @@ def check_import_status(env):
                 print(f"   Summary: {history.summary}")
             
             # Check of import stuck is
-            from datetime import datetime, timedelta
+            from datetime import datetime
             if history.write_date:
                 age = datetime.now() - datetime.strptime(str(history.write_date), '%Y-%m-%d %H:%M:%S')
                 minutes_ago = age.total_seconds() / 60

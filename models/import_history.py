@@ -43,6 +43,9 @@ class ImportHistory(models.Model):
     last_processed_row = fields.Integer('Laatst Verwerkte Rij', default=0, help='Voor resume functionaliteit bij server restart')
     processed_product_ids = fields.Text('Verwerkte Product IDs (JSON)', help='Lijst van product template IDs die succesvol geïmporteerd zijn (voor cleanup)')
     
+    # Mapping archiving (voor traceability en herhaling)
+    mapping_data = fields.Text('Mapping Data (JSON)', help='Column mapping gebruikt voor deze import (voor audit trail en herhaling)')
+    
     # Status
     state = fields.Selection([
         ('queued', 'In Wachtrij'),

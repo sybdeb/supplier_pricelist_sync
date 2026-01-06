@@ -2,7 +2,6 @@
 """Upload DBW_SUPPLIER_SYNC_INTEGRATION.md to GitHub Gist"""
 
 import requests
-import json
 import os
 
 # Read the file

@@ -3,7 +3,7 @@
 Wizard voor handmatig opslaan van mapping als herbruikbare template
 """
 
-from odoo import models, fields, api
+from odoo import models, fields
 from odoo.exceptions import UserError
 import logging
 
@@ -61,7 +61,7 @@ class MappingSaveWizard(models.TransientModel):
             'name': self.name,
             'supplier_id': self.supplier_id.id,
             'is_auto_saved': False,
-            'description': self.description or f'Handmatig opgeslagen mapping template',
+            'description': self.description or 'Handmatig opgeslagen mapping template',
         })
         
         # Get CSV columns for last_import_columns
