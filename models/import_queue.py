@@ -4,9 +4,6 @@ Import Queue - Background processing for large imports
 """
 
 from odoo import models, fields, api
-import base64
-import csv
-import io
 import time
 import logging
 import ast
@@ -35,9 +32,6 @@ class SupplierImportQueue(models.Model):
     min_price = fields.Float(string='Minimum Price', default=0.0)
     skip_discontinued = fields.Boolean(string='Skip Discontinued', default=False)
     cleanup_old_supplierinfo = fields.Boolean(string='Cleanup Old Supplierinfo', default=False)
-    
-    # Shared timestamp for chunked imports (all chunks use same cutoff time)
-    import_session_start = fields.Datetime(string='Import Session Start')
     
     state = fields.Selection([
         ('queued', 'In Wachtrij'),
@@ -75,22 +69,22 @@ class SupplierImportQueue(models.Model):
         # Check if there's already an import being processed
         processing_items = self.search([('state', '=', 'processing')])
         
-        # Check for stuck imports (no batch progress for more than 1.5 hours)
+        # Check for stuck imports (no batch progress for more than 1 hour)
         # Uses history write_date which is updated every batch (500 rows)
         if processing_items:
-            from datetime import datetime, timedelta
-            ninety_minutes_ago = fields.Datetime.now() - timedelta(minutes=90)
+            from datetime import timedelta
+            one_hour_ago = fields.Datetime.now() - timedelta(hours=1)
             stuck_items = processing_items.filtered(
-                lambda i: i.history_id and i.history_id.write_date and i.history_id.write_date < ninety_minutes_ago
+                lambda i: i.history_id and i.history_id.write_date and i.history_id.write_date < one_hour_ago
             )
             
             if stuck_items:
-                _logger.warning(f'Found {len(stuck_items)} stuck import(s) (no batch progress >90min), marking as failed: {stuck_items.ids}')
+                _logger.warning(f'Found {len(stuck_items)} stuck import(s) (no batch progress >1h), marking as failed: {stuck_items.ids}')
                 for item in stuck_items:
                     item.write({'state': 'failed'})
                     item.history_id.write({
                         'state': 'failed',
-                        'summary': 'Import timeout: No batch progress for more than 90 minutes (mogelijk vastgelopen)'
+                        'summary': 'Import timeout: No batch progress for more than 1 hour (mogelijk vastgelopen)'
                     })
                 # Refresh processing_items list
                 processing_items = self.search([('state', '=', 'processing')])
@@ -131,107 +125,106 @@ class SupplierImportQueue(models.Model):
             self.env.cr.commit()
     
     def _execute_queued_import(self):
-        """Execute the import from queue data"""
+        """Execute the import from queue data - NIEUWE BULK ARCHITECTUUR"""
         self.ensure_one()
         
         # Parse mapping from string
         mapping = ast.literal_eval(self.mapping)
         
-        start_time = time.time()
+        _logger.info(f"Starting background import with NEW BULK architecture for supplier {self.supplier_id.name}")
         
         try:
-            # Parse CSV
-            csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
-            csv_reader = csv.DictReader(io.StringIO(csv_data), delimiter=self.csv_separator)
-            
-            # Process rows
-            stats = {
-                'total': 0,
-                'created': 0,
-                'updated': 0,
-                'skipped': 0,
-                'errors': [],
-                'history_id': self.history_id.id
-            }
-            
-            # Batch processing
-            BATCH_SIZE = 500
-            batch_count = 0
-            
-            # Get direct import model for processing logic
-            DirectImport = self.env['supplier.direct.import']
-            
-            for row_num, row in enumerate(csv_reader, start=2):
-                stats['total'] += 1
-                
-                try:
-                    # Use DirectImport's _process_row method
-                    # Create temporary wizard instance with supplier context and filter settings
-                    # NOTE: Don't pass csv_file to avoid memory issues with large files
-                    temp_wizard = DirectImport.create({
-                        'supplier_id': self.supplier_id.id,
-                        'skip_out_of_stock': self.skip_out_of_stock,
-                        'min_stock_qty': self.min_stock_qty,
-                        'skip_zero_price': self.skip_zero_price,
-                        'min_price': self.min_price,
-                        'skip_discontinued': self.skip_discontinued,
-                        'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
-                    })
-                    temp_wizard._process_row(row, mapping, stats, row_num)
-                    temp_wizard.unlink()  # Clean up temp wizard
-                    
-                except Exception as e:
-                    error_msg = str(e) if str(e) else f"{type(e).__name__} (geen error message)"
-                    stats['errors'].append(f"Rij {row_num}: {error_msg}")
-                    stats['skipped'] += 1
-                    _logger.error(f"Background import error on row {row_num}: {error_msg}", exc_info=True)
-                
-                # Commit after each batch
-                if stats["total"] % BATCH_SIZE == 0:
-                    batch_count += 1
-                    
-                    # Update history with current progress
-                    self.history_id.write({
-                        'total_rows': stats['total'],
-                        'created_count': stats['created'],
-                        'updated_count': stats['updated'],
-                        'skipped_count': stats['skipped'],
-                        'error_count': len(stats['errors']),
-                        'duration': time.time() - start_time,
-                        'summary': f"Processing... {stats['total']} rows processed so far ({stats['created']} created, {stats['updated']} updated, {stats['skipped']} skipped, {len(stats['errors'])} errors)",
-                        'state': 'running',
-                    })
-                    self.env.cr.commit()
-                    
-                    _logger.info(f"Background import batch {batch_count} committed ({stats['total']} rows, {stats['created']} created, {stats['skipped']} skipped)")
-            
-            # Calculate duration
-            duration = time.time() - start_time
-            
-            # Create summary
+            # Create temporary wizard instance to use the new bulk import methods
             DirectImport = self.env['supplier.direct.import']
             temp_wizard = DirectImport.create({
                 'supplier_id': self.supplier_id.id,
                 'csv_file': self.csv_file,
+                'csv_filename': self.csv_filename,
+                'encoding': self.encoding,
+                'csv_separator': self.csv_separator,
+                'skip_out_of_stock': self.skip_out_of_stock,
+                'min_stock_qty': self.min_stock_qty,
+                'skip_zero_price': self.skip_zero_price,
+                'min_price': self.min_price,
+                'skip_discontinued': self.skip_discontinued,
+                'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
             })
+            
+            # Save the original history reference
+            original_history = self.history_id
+            
+            # Call the NEW bulk _execute_import method
+            import json
+            start_time = time.time()
+            
+            # STEP 1: PRE-SCAN CSV
+            _logger.info("=== BACKGROUND IMPORT: STEP 1 PRE-SCAN ===")
+            prescan_data = temp_wizard._prescan_csv_and_prepare(mapping)
+            
+            total_rows = len(prescan_data['update_codes']) + len(prescan_data['create_codes']) + \
+                        len(prescan_data['filtered']) + len(prescan_data['error_rows'])
+            
+            _logger.info(f"Pre-scan: {total_rows} rows ({len(prescan_data['update_codes'])} updates, {len(prescan_data['create_codes'])} creates)")
+            
+            # STEP 2: PRE-CLEANUP
+            cleanup_stats = {'removed': 0, 'archived': 0}
+            if self.cleanup_old_supplierinfo:
+                _logger.info("=== BACKGROUND IMPORT: STEP 2 PRE-CLEANUP ===")
+                cleanup_stats = temp_wizard._cleanup_old_supplierinfo(prescan_data, original_history.id)
+            
+            # STEP 3: BULK UPDATE
+            updated_count = 0
+            if prescan_data['update_codes']:
+                _logger.info("=== BACKGROUND IMPORT: STEP 3 BULK UPDATE ===")
+                updated_count = temp_wizard._bulk_update_supplierinfo(prescan_data, mapping)
+            
+            # STEP 4: BULK CREATE
+            created_count = 0
+            if prescan_data['create_codes']:
+                _logger.info("=== BACKGROUND IMPORT: STEP 4 BULK CREATE ===")
+                created_count = temp_wizard._bulk_create_supplierinfo(prescan_data, mapping)
+            
+            # STEP 5: POST-PROCESS
+            archived_count = 0
+            if self.cleanup_old_supplierinfo:
+                _logger.info("=== BACKGROUND IMPORT: STEP 5 POST-PROCESS ===")
+                archived_count = temp_wizard._archive_products_without_suppliers()
+            
+            # Calculate duration
+            duration = time.time() - start_time
+            
+            # Build summary
+            stats = {
+                'total': total_rows,
+                'created': created_count,
+                'updated': updated_count,
+                'skipped': len(prescan_data['filtered']),
+                'errors': prescan_data['error_rows'],
+            }
             summary = temp_wizard._create_import_summary(stats)
             
-            # AUTO-SAVE mapping template (same as direct import)
-            temp_wizard._auto_save_mapping_template(mapping)
-            
-            temp_wizard.unlink()
+            if self.cleanup_old_supplierinfo:
+                summary += f"\n\nCleanup:\n" \
+                          f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
+                          f"- Gearchiveerd: {cleanup_stats['archived']} + {archived_count} producten"
             
             # Update history record
-            self.history_id.write({
-                'total_rows': stats['total'],
-                'created_count': stats['created'],
-                'updated_count': stats['updated'],
-                'skipped_count': stats['skipped'],
-                'error_count': len(stats['errors']),
+            original_history.write({
+                'total_rows': total_rows,
+                'created_count': created_count,
+                'updated_count': updated_count,
+                'skipped_count': len(prescan_data['filtered']),
+                'error_count': len(prescan_data['error_rows']),
                 'duration': duration,
                 'summary': summary,
-                'state': 'completed_with_errors' if stats['errors'] else 'completed',
+                'state': 'completed_with_errors' if prescan_data['error_rows'] else 'completed',
+                'mapping_data': json.dumps(mapping),  # Archive mapping
             })
+            
+            # Create error records in database for missende producten
+            if prescan_data['error_rows']:
+                temp_wizard._create_error_records(original_history.id, prescan_data['error_rows'])
+                _logger.info(f"Created {len(prescan_data['error_rows'])} error records in database")
             
             # Update supplier's last sync date
             try:
@@ -239,8 +232,17 @@ class SupplierImportQueue(models.Model):
             except Exception as e:
                 _logger.warning(f"Could not update supplier last_sync_date: {e}")
             
-            _logger.info(f"Background import completed: {stats['total']} rows processed, {stats['created']} created, {stats['updated']} updated")
+            # AUTO-SAVE mapping template
+            temp_wizard._auto_save_mapping_template(mapping)
             
+            # Clean up temp wizard
+            temp_wizard.unlink()
+            
+            _logger.info(f"=== BACKGROUND IMPORT COMPLETE: {duration:.1f}s, {total_rows/duration:.0f} rows/sec ===")
+            
+        except Exception as e:
+            _logger.error(f"Background import failed: {e}", exc_info=True)
+            raise
         except Exception as e:
             _logger.error(f"Background import failed: {e}", exc_info=True)
             raise
