@@ -103,9 +103,10 @@ class DirectImport(models.TransientModel):
     )
     
     # Merk filtering
-    brand_blacklist = fields.Text(
+    brand_blacklist = fields.Many2many(
+        'product.brand',
         string='Merk Blacklist',
-        help="Merken die geskipt moeten worden (één merk per regel of komma-gescheiden).\n"
+        help="Merken die geskipt moeten worden.\n"
              "Producten van deze merken worden niet geïmporteerd, tenzij hun EAN op de whitelist staat."
     )
     
@@ -115,12 +116,26 @@ class DirectImport(models.TransientModel):
              "Eén EAN per regel of komma-gescheiden. Gebruik dit voor uitzonderingen op de merk blacklist."
     )
     
+    # PRO version detection (computed for UI)
+    is_pro_version = fields.Boolean(
+        string='Is PRO Version',
+        compute='_compute_is_pro_version',
+        store=False
+    )
+    
     # Import results
     import_summary = fields.Text('Import Summary', readonly=True)
     
     # =========================================================================
     # PRO VERSION & LIMIT CHECKS
     # =========================================================================
+    
+    @api.depends()
+    def _compute_is_pro_version(self):
+        """Compute if PRO version is installed for UI visibility"""
+        is_pro = self._is_pro_version()
+        for record in self:
+            record.is_pro_version = is_pro
     
     def _is_pro_version(self):
         """Check if PRO version is installed"""
@@ -171,7 +186,7 @@ class DirectImport(models.TransientModel):
             self.skip_zero_price = self.template_id.skip_zero_price
             self.min_price = self.template_id.min_price
             self.skip_discontinued = self.template_id.skip_discontinued
-            self.brand_blacklist = self.template_id.brand_blacklist
+            self.brand_blacklist = [(6, 0, self.template_id.brand_blacklist.ids)]
             self.ean_whitelist = self.template_id.ean_whitelist
             
             _logger.info(f"Template '{self.template_id.name}' loaded. "
@@ -183,7 +198,7 @@ class DirectImport(models.TransientModel):
             self.skip_zero_price = True
             self.min_price = 0.0
             self.skip_discontinued = False
-            self.brand_blacklist = False
+            self.brand_blacklist = [(5, 0, 0)]  # Clear Many2many
             self.ean_whitelist = False
     
     # =========================================================================
@@ -730,17 +745,13 @@ class DirectImport(models.TransientModel):
         
         # Brand blacklist filter met EAN whitelist escape
         if self.brand_blacklist:
-            # Parse blacklist (één merk per regel of komma-gescheiden)
-            blacklisted_brands = set()
-            for line in (self.brand_blacklist or '').replace(',', '\n').split('\n'):
-                brand = line.strip().lower()
-                if brand:
-                    blacklisted_brands.add(brand)
+            # Get brand names from Many2many
+            blacklisted_brand_names = set(brand.name.lower() for brand in self.brand_blacklist)
             
-            if blacklisted_brands:
+            if blacklisted_brand_names:
                 # Check product brand
                 product_brand = product_fields.get('brand', '').strip().lower()
-                if product_brand in blacklisted_brands:
+                if product_brand in blacklisted_brand_names:
                     # Merk staat op blacklist! Check EAN whitelist
                     if self.ean_whitelist:
                         # Parse EAN whitelist

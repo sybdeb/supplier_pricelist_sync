@@ -85,9 +85,10 @@ class SupplierMappingTemplate(models.Model):
     )
     
     # Merk filtering
-    brand_blacklist = fields.Text(
+    brand_blacklist = fields.Many2many(
+        'product.brand',
         string='Merk Blacklist',
-        help="Merken die geskipt moeten worden (één merk per regel of komma-gescheiden).\n"
+        help="Merken die geskipt moeten worden.\n"
              "Producten van deze merken worden niet geïmporteerd, tenzij hun EAN op de whitelist staat."
     )
     

@@ -13,7 +13,8 @@
                     </div>
                     
                     <!-- Rate Limit Banner (Free Version) -->
-                    <div class="alert alert-warning" style="margin-bottom: 15px;">
+                    <field name="is_pro_version" invisible="1"/>
+                    <div class="alert alert-warning" style="margin-bottom: 15px;" invisible="is_pro_version">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <strong>📊 Gratis Versie</strong> - Maximaal 2 imports per dag per leverancier
@@ -50,6 +51,45 @@
                         </group>
                     </group>
                     
+                    <!-- Import Filtering Section (visible after template selection) -->
+                    <div invisible="not template_id">
+                        <separator string="🔍 Import Filtering" colspan="2"/>
+                        <group>
+                            <group string="Voorraad &amp; Prijs Filters">
+                                <label for="skip_out_of_stock" string="Voorraad Filters"/>
+                                <div>
+                                    <field name="skip_out_of_stock" nolabel="1" class="oe_inline"/>
+                                    <span class="oe_inline ml-2">Skip als Voorraad = 0</span>
+                                </div>
+                                <field name="min_stock_qty" string="Minimum Voorraad"/>
+                                
+                                <label for="skip_zero_price" string="Prijs Filters"/>
+                                <div>
+                                    <field name="skip_zero_price" nolabel="1" class="oe_inline"/>
+                                    <span class="oe_inline ml-2">Skip als Prijs = 0</span>
+                                </div>
+                                <field name="min_price" string="Minimum Prijs"/>
+                                
+                                <label for="skip_discontinued" string="Overige"/>
+                                <div>
+                                    <field name="skip_discontinued" nolabel="1" class="oe_inline"/>
+                                    <span class="oe_inline ml-2">Skip Discontinued</span>
+                                </div>
+                            </group>
+                            
+                            <group string="🏷️ Merk Filtering">
+                                <field name="brand_blacklist" widget="many2many_tags" placeholder="Selecteer merken om te skippen..."/>
+                                <field name="ean_whitelist" widget="text" placeholder="8712345678901&#10;8712345678902&#10;&#10;(één EAN per regel)"/>
+                                <div class="alert alert-info" role="alert">
+                                    <small>
+                                        <strong>Merk blacklist:</strong> Skip producten van deze merken.<br/>
+                                        <strong>EAN whitelist:</strong> Importeer deze EANs WEL, ondanks blacklist.
+                                    </small>
+                                </div>
+                            </group>
+                        </group>
+                    </div>
+                    
                     <!-- Parse Button -->
                     <div class="alert alert-info mt-3" invisible="mapping_lines">
                         <p class="mb-2">
@@ -83,45 +123,6 @@
                         <div class="alert alert-warning mt-2">
                             <strong>⚠️ Vereist:</strong> Minimaal <code>barcode</code> of <code>product_code</code> + <code>price</code>
                         </div>
-                    </div>
-                    
-                    <!-- Import Filtering Section -->
-                    <div invisible="not mapping_lines">
-                        <group>
-                            <group string="🔍 Import Filtering">
-                                <label for="skip_out_of_stock" string="Voorraad Filters"/>
-                                <div>
-                                    <field name="skip_out_of_stock" nolabel="1" class="oe_inline"/>
-                                    <span class="oe_inline ml-2">Skip als Voorraad = 0</span>
-                                </div>
-                                <field name="min_stock_qty" string="Minimum Voorraad"/>
-                                
-                                <label for="skip_zero_price" string="Prijs Filters"/>
-                                <div>
-                                    <field name="skip_zero_price" nolabel="1" class="oe_inline"/>
-                                    <span class="oe_inline ml-2">Skip als Prijs = 0</span>
-                                </div>
-                                <field name="min_price" string="Minimum Prijs"/>
-                                
-                                <label for="skip_discontinued" string="Overige"/>
-                                <div>
-                                    <field name="skip_discontinued" nolabel="1" class="oe_inline"/>
-                                    <span class="oe_inline ml-2">Skip Discontinued</span>
-                                </div>
-                            </group>
-                            
-                            <group string="🏷️ Merk Filtering">
-                                <field name="brand_blacklist" widget="text" placeholder="Samsung&#10;LG&#10;Sony&#10;&#10;(één merk per regel)" nolabel="1"/>
-                                <label for="ean_whitelist" string="EAN Whitelist (escapes)"/>
-                                <field name="ean_whitelist" widget="text" placeholder="8712345678901&#10;8712345678902&#10;&#10;(één EAN per regel)" nolabel="1"/>
-                                <div class="alert alert-info" role="alert">
-                                    <small>
-                                        <strong>Merk blacklist:</strong> Skip producten van deze merken.<br/>
-                                        <strong>EAN whitelist:</strong> Importeer deze EANs WEL, ondanks blacklist.
-                                    </small>
-                                </div>
-                            </group>
-                        </group>
                     </div>
                     
                     <!-- Import Summary -->
