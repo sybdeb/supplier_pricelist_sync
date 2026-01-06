@@ -1281,6 +1281,28 @@ class DirectImport(models.TransientModel):
             f"  ⏭️  Overgeslagen: {stats['skipped']}",
         ]
         
+        # Show active filters
+        active_filters = []
+        if self.skip_zero_price:
+            active_filters.append("Prijs = 0")
+        if self.min_price > 0:
+            active_filters.append(f"Prijs < €{self.min_price:.2f}")
+        if self.skip_out_of_stock:
+            active_filters.append("Voorraad = 0")
+        if self.min_stock_qty > 0:
+            active_filters.append(f"Voorraad < {self.min_stock_qty}")
+        if self.skip_discontinued:
+            active_filters.append("Discontinued")
+        if self.brand_blacklist_ids:
+            brands = ', '.join(self.brand_blacklist_ids.mapped('name'))
+            active_filters.append(f"Merken: {brands}")
+        
+        if active_filters:
+            summary_lines.append("")
+            summary_lines.append("🔍 Actieve filters:")
+            for f in active_filters:
+                summary_lines.append(f"  • {f}")
+        
         # Show skip reasons breakdown
         if stats.get('skip_reasons'):
             skip_reasons = stats['skip_reasons']
