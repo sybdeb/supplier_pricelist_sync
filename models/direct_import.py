@@ -102,14 +102,6 @@ class DirectImport(models.TransientModel):
         help="Als aangevinkt: skip producten gemarkeerd als discontinued in CSV"
     )
     
-    # Cleanup options
-    cleanup_old_supplierinfo = fields.Boolean(
-        string='Cleanup Oude Leverancier Regels',
-        default=False,
-        help="Als aangevinkt: verwijder supplierinfo van producten die NIET in deze import zitten.\n"
-             "WAARSCHUWING: Producten zonder leveranciers worden gearchiveerd!"
-    )
-    
     # Import results
     import_summary = fields.Text('Import Summary', readonly=True)
     
@@ -412,11 +404,9 @@ class DirectImport(models.TransientModel):
             
             _logger.info(f"Pre-scan complete: {total_rows} rows ({len(prescan_data['update_codes'])} updates, {len(prescan_data['create_codes'])} creates)")
             
-            # STEP 2: PRE-CLEANUP (before update/create)
-            cleanup_stats = {'removed': 0, 'archived': 0}
-            if self.cleanup_old_supplierinfo:
-                _logger.info("=== STEP 2: PRE-CLEANUP ===")
-                cleanup_stats = self._cleanup_old_supplierinfo(prescan_data, history.id)
+            # STEP 2: CLEANUP (remove supplierinfo for products NOT in CSV)
+            _logger.info("=== STEP 2: CLEANUP ===")
+            cleanup_stats = self._cleanup_old_supplierinfo(prescan_data, history.id)
             
             # STEP 3: BULK UPDATE
             updated_count = 0
@@ -430,11 +420,9 @@ class DirectImport(models.TransientModel):
                 _logger.info("=== STEP 4: BULK CREATE ===")
                 created_count = self._bulk_create_supplierinfo(prescan_data, mapping)
             
-            # STEP 5: POST-PROCESS (archive products without suppliers)
-            archived_count = 0
-            if self.cleanup_old_supplierinfo:
-                _logger.info("=== STEP 5: POST-PROCESS ===")
-                archived_count = self._archive_products_without_suppliers()
+            # STEP 5: POST-PROCESS (archive products without suppliers AND stock)
+            _logger.info("=== STEP 5: POST-PROCESS ===")
+            archived_count = self._archive_products_without_suppliers()
             
             # Calculate duration
             duration = time.time() - start_time
@@ -449,10 +437,10 @@ class DirectImport(models.TransientModel):
             }
             summary = self._create_import_summary(stats)
             
-            if self.cleanup_old_supplierinfo:
-                summary += f"\n\nCleanup:\n" \
-                          f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
-                          f"- Gearchiveerd: {cleanup_stats['archived']} + {archived_count} producten"
+            # Add cleanup stats to summary
+            summary += f"\n\nCleanup:\n" \
+                      f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
+                      f"- Gearchiveerd: {archived_count} producten (geen leveranciers + geen voorraad)"
             
             # Update history record
             history.write({
@@ -606,6 +594,27 @@ class DirectImport(models.TransientModel):
                 prescan_data['error_rows'].append({'row': row_num, 'error': str(e)})
                 _logger.warning(f"Error pre-scanning row {row_num}: {e}")
         
+        # Detect products with supplierinfo for this supplier NOT in CSV
+        csv_product_ids = set()
+        for row_data in prescan_data['update_codes'].values():
+            if row_data.get('_product_id'):
+                product = Product.browse(row_data['_product_id'])
+                csv_product_ids.add(product.product_tmpl_id.id)
+        
+        # Get all products with supplierinfo for this supplier
+        existing_supplierinfo = self.env['product.supplierinfo'].search([
+            ('partner_id', '=', self.supplier_id.id)
+        ])
+        existing_product_ids = set(existing_supplierinfo.mapped('product_tmpl_id.id'))
+        
+        # Products that have this supplier but are NOT in CSV
+        missing_product_ids = existing_product_ids - csv_product_ids
+        prescan_data['missing_products'] = list(missing_product_ids)
+        
+        _logger.info(f"Prescan: {len(csv_product_ids)} products in CSV, "
+                    f"{len(existing_product_ids)} existing with this supplier, "
+                    f"{len(missing_product_ids)} to cleanup")
+        
         return prescan_data
     
     def _parse_row_data(self, row, mapping):
@@ -663,43 +672,25 @@ class DirectImport(models.TransientModel):
     
     def _cleanup_old_supplierinfo(self, prescan_data, history_id):
         """
-        Step 2: Pre-cleanup - Remove old supplierinfo NOT in current import
+        Step 2: Cleanup - Remove supplierinfo for products NOT in current CSV
+        Only removes supplierinfo for THIS supplier, leaves other suppliers intact
         """
-        cleanup_stats = {'removed': 0, 'archived': 0}
+        cleanup_stats = {'removed': 0}
         
-        # Get all product IDs that WILL be in this import
-        imported_product_ids = set()
-        for row_data in prescan_data['update_codes'].values():
-            if row_data.get('_product_id'):
-                # Get template ID from product variant
-                product = self.env['product.product'].browse(row_data['_product_id'])
-                imported_product_ids.add(product.product_tmpl_id.id)
-        
-        if not imported_product_ids:
+        missing_product_ids = prescan_data.get('missing_products', [])
+        if not missing_product_ids:
             return cleanup_stats
         
-        # Find OLD supplierinfo for this supplier NOT in current import
+        # Find supplierinfo for THIS supplier on products NOT in CSV
         old_supplierinfo = self.env['product.supplierinfo'].search([
             ('partner_id', '=', self.supplier_id.id),
-            ('product_tmpl_id', 'not in', list(imported_product_ids))
+            ('product_tmpl_id', 'in', missing_product_ids)
         ])
         
         if old_supplierinfo:
-            affected_products = old_supplierinfo.mapped('product_tmpl_id')
             cleanup_stats['removed'] = len(old_supplierinfo)
-            _logger.info(f"Pre-cleanup: Removing {cleanup_stats['removed']} old supplier records")
+            _logger.info(f"Cleanup: Removing {cleanup_stats['removed']} supplierinfo records for this supplier")
             old_supplierinfo.unlink()
-            self.env.cr.commit()
-            
-            # Archive products without any suppliers
-            for product in affected_products:
-                remaining = self.env['product.supplierinfo'].search_count([
-                    ('product_tmpl_id', '=', product.id)
-                ])
-                if remaining == 0 and product.active:
-                    product.write({'active': False})
-                    cleanup_stats['archived'] += 1
-            
             self.env.cr.commit()
         
         return cleanup_stats
@@ -844,11 +835,14 @@ class DirectImport(models.TransientModel):
     
     def _archive_products_without_suppliers(self):
         """
-        Step 5: Post-process - Archive products without any suppliers
+        Step 5: Post-process - Archive products without ANY suppliers AND without stock
+        Only archives if BOTH conditions are true:
+        - No supplierinfo records exist
+        - No stock (qty_available = 0)
         """
         archived_count = 0
         
-        # Find active products without any supplierinfo
+        # Find active products without any supplierinfo AND without stock
         self.env.cr.execute("""
             SELECT pt.id 
             FROM product_template pt
@@ -857,6 +851,7 @@ class DirectImport(models.TransientModel):
                 SELECT 1 FROM product_supplierinfo si 
                 WHERE si.product_tmpl_id = pt.id
             )
+            AND pt.qty_available = 0
         """)
         
         product_ids = [r[0] for r in self.env.cr.fetchall()]
@@ -865,7 +860,7 @@ class DirectImport(models.TransientModel):
             products = self.env['product.template'].browse(product_ids)
             products.write({'active': False})
             archived_count = len(products)
-            _logger.info(f"Archived {archived_count} products without suppliers")
+            _logger.info(f"Archived {archived_count} products (no suppliers + no stock)")
             self.env.cr.commit()
         
         return archived_count
