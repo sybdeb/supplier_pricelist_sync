@@ -106,6 +106,45 @@ class DirectImport(models.TransientModel):
     import_summary = fields.Text('Import Summary', readonly=True)
     
     # =========================================================================
+    # PRO VERSION & LIMIT CHECKS
+    # =========================================================================
+    
+    def _is_pro_version(self):
+        """Check if PRO version is installed"""
+        return bool(self.env['ir.module.module'].search([
+            ('name', '=', 'product_supplier_sync_pro'),
+            ('state', '=', 'installed')
+        ], limit=1))
+    
+    def _check_daily_import_limit(self):
+        """
+        FREE version: maximum 2 imports per day per supplier
+        PRO version: unlimited
+        """
+        if self._is_pro_version():
+            return  # No limits for PRO
+        
+        # Count imports today for this supplier
+        today_start = fields.Datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_imports = self.env['supplier.import.history'].search_count([
+            ('supplier_id', '=', self.supplier_id.id),
+            ('import_date', '>=', today_start),
+            ('state', 'in', ['completed', 'completed_with_errors', 'running', 'queued'])
+        ])
+        
+        if today_imports >= 2:
+            raise UserError(
+                f"📊 Gratis versie limiet bereikt\n\n"
+                f"Je hebt vandaag al {today_imports} imports gedaan voor {self.supplier_id.name}.\n"
+                f"De gratis versie staat maximaal 2 imports per dag per leverancier toe.\n\n"
+                f"Upgrade naar de PRO versie voor onbeperkte imports:\n"
+                f"• Onbeperkte dagelijkse imports\n"
+                f"• Automatische scheduled imports\n"
+                f"• FTP/API/Email integraties\n"
+                f"• Priority support"
+            )
+    
+    # =========================================================================
     # TEMPLATE LOADING
     # =========================================================================
     
@@ -308,6 +347,9 @@ class DirectImport(models.TransientModel):
         Voor kleine imports: direct processing
         """
         self.ensure_one()
+        
+        # Check daily import limit for FREE version
+        self._check_daily_import_limit()
         
         if not self.csv_file:
             raise UserError("Geen CSV bestand gevonden")
