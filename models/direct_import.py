@@ -419,9 +419,10 @@ class DirectImport(models.TransientModel):
                 _logger.info("=== STEP 4: BULK CREATE ===")
                 created_count = self._bulk_create_supplierinfo(prescan_data, mapping)
             
-            # STEP 5: POST-PROCESS (archive products without suppliers AND stock)
+            # STEP 5: POST-PROCESS (archive/reactivate products)
             _logger.info("=== STEP 5: POST-PROCESS ===")
             archived_count = self._archive_products_without_suppliers()
+            reactivated_count = self._reactivate_products_with_suppliers()
             
             # Calculate duration
             duration = time.time() - start_time
@@ -439,7 +440,8 @@ class DirectImport(models.TransientModel):
             # Add cleanup stats to summary
             summary += f"\n\nCleanup:\n" \
                       f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
-                      f"- Gearchiveerd: {archived_count} producten (geen leveranciers + geen voorraad)"
+                      f"- Gearchiveerd: {archived_count} producten (geen leveranciers + geen voorraad)\n" \
+                      f"- Geactiveerd: {reactivated_count} producten (hebben weer leveranciers)"
             
             # Update history record
             history.write({
@@ -869,6 +871,34 @@ class DirectImport(models.TransientModel):
             self.env.cr.commit()
         
         return archived_count
+    
+    def _reactivate_products_with_suppliers(self):
+        """
+        Reactivate archived products that now have supplier info again
+        """
+        reactivated_count = 0
+        
+        # Find inactive products that DO have supplierinfo
+        self.env.cr.execute("""
+            SELECT DISTINCT pt.id 
+            FROM product_template pt
+            WHERE pt.active = false
+            AND EXISTS (
+                SELECT 1 FROM product_supplierinfo si 
+                WHERE si.product_tmpl_id = pt.id
+            )
+        """)
+        
+        product_ids = [r[0] for r in self.env.cr.fetchall()]
+        
+        if product_ids:
+            products = self.env['product.template'].browse(product_ids)
+            products.write({'active': True})
+            reactivated_count = len(products)
+            _logger.info(f"Reactivated {reactivated_count} products (have suppliers again)")
+            self.env.cr.commit()
+        
+        return reactivated_count
     
     # =========================================================================
     # OUDE ROW-BY-ROW METHODS (bewaard voor backward compatibility)

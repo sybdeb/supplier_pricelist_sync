@@ -183,6 +183,7 @@ class SupplierImportQueue(models.Model):
             # STEP 5: POST-PROCESS
             _logger.info("=== BACKGROUND IMPORT: STEP 5 POST-PROCESS ===")
             archived_count = temp_wizard._archive_products_without_suppliers()
+            reactivated_count = temp_wizard._reactivate_products_with_suppliers()
             
             # Calculate duration
             duration = time.time() - start_time
@@ -200,7 +201,8 @@ class SupplierImportQueue(models.Model):
             # Add cleanup stats to summary
             summary += f"\n\nCleanup:\n" \
                       f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
-                      f"- Gearchiveerd: {archived_count} producten (geen leveranciers + geen voorraad)"
+                      f"- Gearchiveerd: {archived_count} producten (geen leveranciers + geen voorraad)\n" \
+                      f"- Geactiveerd: {reactivated_count} producten (hebben weer leveranciers)"
             
             # Update history record
             original_history.write({
