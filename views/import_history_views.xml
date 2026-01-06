@@ -37,6 +37,21 @@
                     <field name="state" widget="statusbar" statusbar_clickable="true"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_set_failed" 
+                                string="Force Fail" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-times-circle"
+                                invisible="state not in ['running', 'pending', 'queued']"
+                                confirm="Weet je zeker dat je deze import als mislukt wilt markeren?"/>
+                        <button name="action_set_completed" 
+                                string="Force Complete" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-check-circle"
+                                invisible="state not in ['running', 'pending']"/>
+                    </div>
                     <group>
                         <group>
                             <field name="supplier_id"/>
