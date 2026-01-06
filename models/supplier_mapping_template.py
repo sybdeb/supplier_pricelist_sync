@@ -47,6 +47,12 @@ class SupplierMappingTemplate(models.Model):
         default=True
     )
     
+    is_auto_saved = fields.Boolean(
+        string='Auto-saved',
+        default=False,
+        help="Automatisch opgeslagen mapping (niet handmatig aangemaakt)"
+    )
+    
     # Skip voorwaarden voor import
     skip_out_of_stock = fields.Boolean(
         string='Skip als Voorraad = 0',
