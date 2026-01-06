@@ -1300,28 +1300,11 @@ class DirectImport(models.TransientModel):
                 if skip_reasons.get('brand_blacklist'):
                     summary_lines.append(f"  • Merk blacklist: {skip_reasons['brand_blacklist']}")
         
+        # Only show error count, not the full list (errors are in Errors tab)
         if stats['errors']:
             summary_lines.append("")
-            summary_lines.append(f"⚠️  MISSENDE PRODUCTEN ({len(stats['errors'])}) - voor bulk aanmaken:")
-            summary_lines.append("=" * 80)
-            
-            # Toon tot 100 errors met details
-            for idx, err in enumerate(stats['errors'][:100], 1):
-                if isinstance(err, dict):
-                    # Nieuwe format met product details
-                    barcode = err.get('barcode', 'N/A')
-                    product_code = err.get('product_code', 'N/A')
-                    brand = err.get('brand', 'N/A')
-                    summary_lines.append(
-                        f"{idx:3}. EAN: {barcode:13} | SKU: {product_code:15} | Merk: {brand}"
-                    )
-                else:
-                    # Oude format (backward compatibility)
-                    summary_lines.append(f"{idx:3}. {err}")
-            
-            if len(stats['errors']) > 100:
-                summary_lines.append("")
-                summary_lines.append(f"... en {len(stats['errors']) - 100} meer missende producten")
+            summary_lines.append(f"⚠️  Missende producten: {len(stats['errors'])}")
+            summary_lines.append(f"   → Bekijk de 'Errors' tab voor details")
         
         return '\n'.join(summary_lines)
     
