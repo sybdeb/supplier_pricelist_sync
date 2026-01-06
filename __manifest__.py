@@ -1,6 +1,6 @@
 {
     "name": "Supplier Pricelist Sync v3.0 (Bulk Import Optimization)",
-    "version": "19.0.3.0",
+    "version": "19.0.3.1.3",
     "summary": "Direct supplier pricelist import with automatic column mapping",
     "description": """
 Direct Supplier Pricelist Import System:
