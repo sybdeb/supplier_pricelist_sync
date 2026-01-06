@@ -34,7 +34,9 @@
                     <button name="action_set_completed" string="Markeer als Voltooid" type="object" 
                             invisible="state not in ['running', 'pending']" 
                             class="btn-success"/>
-                    <field name="state" widget="statusbar" statusbar_clickable="true"/>
+                    <field name="state" widget="statusbar" 
+                           statusbar_visible="queued,running,completed,completed_with_errors,failed"
+                           statusbar_clickable="true"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
