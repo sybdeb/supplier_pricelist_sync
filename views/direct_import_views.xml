@@ -78,7 +78,7 @@
                             </group>
                             
                             <group string="🏷️ Merk Filtering">
-                                <field name="brand_blacklist" widget="many2many_tags" placeholder="Selecteer merken om te skippen..."/>
+                                <field name="brand_blacklist_ids" widget="many2many_tags" placeholder="Selecteer merken om te skippen..." options="{'no_create': True}"/>
                                 <field name="ean_whitelist" widget="text" placeholder="8712345678901&#10;8712345678902&#10;&#10;(één EAN per regel)"/>
                                 <div class="alert alert-info" role="alert">
                                     <small>

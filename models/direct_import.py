@@ -103,8 +103,12 @@ class DirectImport(models.TransientModel):
     )
     
     # Merk filtering
-    brand_blacklist = fields.Many2many(
+    # Merk filtering - Many2many naar product.brand (optioneel)
+    brand_blacklist_ids = fields.Many2many(
         'product.brand',
+        'direct_import_brand_blacklist_rel',
+        'import_id',
+        'brand_id',
         string='Merk Blacklist',
         help="Merken die geskipt moeten worden.\n"
              "Producten van deze merken worden niet geïmporteerd, tenzij hun EAN op de whitelist staat."
@@ -186,7 +190,7 @@ class DirectImport(models.TransientModel):
             self.skip_zero_price = self.template_id.skip_zero_price
             self.min_price = self.template_id.min_price
             self.skip_discontinued = self.template_id.skip_discontinued
-            self.brand_blacklist = [(6, 0, self.template_id.brand_blacklist.ids)]
+            self.brand_blacklist_ids = [(6, 0, self.template_id.brand_blacklist_ids.ids)]
             self.ean_whitelist = self.template_id.ean_whitelist
             
             _logger.info(f"Template '{self.template_id.name}' loaded. "
@@ -198,7 +202,7 @@ class DirectImport(models.TransientModel):
             self.skip_zero_price = True
             self.min_price = 0.0
             self.skip_discontinued = False
-            self.brand_blacklist = [(5, 0, 0)]  # Clear Many2many
+            self.brand_blacklist_ids = [(5, 0, 0)]
             self.ean_whitelist = False
     
     # =========================================================================
@@ -744,14 +748,14 @@ class DirectImport(models.TransientModel):
                 return True
         
         # Brand blacklist filter met EAN whitelist escape
-        if self.brand_blacklist:
-            # Get brand names from Many2many
-            blacklisted_brand_names = set(brand.name.lower() for brand in self.brand_blacklist)
+        if self.brand_blacklist_ids:
+            # Get brand names from Many2many (case-insensitive)
+            blacklisted_brands = set(brand.name.lower() for brand in self.brand_blacklist_ids)
             
-            if blacklisted_brand_names:
+            if blacklisted_brands:
                 # Check product brand
                 product_brand = product_fields.get('brand', '').strip().lower()
-                if product_brand in blacklisted_brand_names:
+                if product_brand in blacklisted_brands:
                     # Merk staat op blacklist! Check EAN whitelist
                     if self.ean_whitelist:
                         # Parse EAN whitelist

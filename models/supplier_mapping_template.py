@@ -84,9 +84,12 @@ class SupplierMappingTemplate(models.Model):
         help="Als aangevinkt: skip producten gemarkeerd als discontinued in CSV"
     )
     
-    # Merk filtering
-    brand_blacklist = fields.Many2many(
+    # Merk filtering - Many2many naar product.brand
+    brand_blacklist_ids = fields.Many2many(
         'product.brand',
+        'mapping_template_brand_blacklist_rel',
+        'template_id',
+        'brand_id',
         string='Merk Blacklist',
         help="Merken die geskipt moeten worden.\n"
              "Producten van deze merken worden niet geïmporteerd, tenzij hun EAN op de whitelist staat."
