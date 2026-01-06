@@ -362,7 +362,6 @@ class DirectImport(models.TransientModel):
                 'skip_zero_price': self.skip_zero_price,
                 'min_price': self.min_price,
                 'skip_discontinued': self.skip_discontinued,
-                'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
             })
             
             return {
