@@ -31,7 +31,6 @@ class SupplierImportQueue(models.Model):
     skip_zero_price = fields.Boolean(string='Skip Zero Price', default=True)
     min_price = fields.Float(string='Minimum Price', default=0.0)
     skip_discontinued = fields.Boolean(string='Skip Discontinued', default=False)
-    cleanup_old_supplierinfo = fields.Boolean(string='Cleanup Old Supplierinfo', default=False)
     
     state = fields.Selection([
         ('queued', 'In Wachtrij'),
@@ -147,7 +146,6 @@ class SupplierImportQueue(models.Model):
                 'skip_zero_price': self.skip_zero_price,
                 'min_price': self.min_price,
                 'skip_discontinued': self.skip_discontinued,
-                'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
             })
             
             # Save the original history reference
@@ -166,11 +164,9 @@ class SupplierImportQueue(models.Model):
             
             _logger.info(f"Pre-scan: {total_rows} rows ({len(prescan_data['update_codes'])} updates, {len(prescan_data['create_codes'])} creates)")
             
-            # STEP 2: PRE-CLEANUP
-            cleanup_stats = {'removed': 0, 'archived': 0}
-            if self.cleanup_old_supplierinfo:
-                _logger.info("=== BACKGROUND IMPORT: STEP 2 PRE-CLEANUP ===")
-                cleanup_stats = temp_wizard._cleanup_old_supplierinfo(prescan_data, original_history.id)
+            # STEP 2: CLEANUP
+            _logger.info("=== BACKGROUND IMPORT: STEP 2 CLEANUP ===")
+            cleanup_stats = temp_wizard._cleanup_old_supplierinfo(prescan_data, original_history.id)
             
             # STEP 3: BULK UPDATE
             updated_count = 0
@@ -185,10 +181,8 @@ class SupplierImportQueue(models.Model):
                 created_count = temp_wizard._bulk_create_supplierinfo(prescan_data, mapping)
             
             # STEP 5: POST-PROCESS
-            archived_count = 0
-            if self.cleanup_old_supplierinfo:
-                _logger.info("=== BACKGROUND IMPORT: STEP 5 POST-PROCESS ===")
-                archived_count = temp_wizard._archive_products_without_suppliers()
+            _logger.info("=== BACKGROUND IMPORT: STEP 5 POST-PROCESS ===")
+            archived_count = temp_wizard._archive_products_without_suppliers()
             
             # Calculate duration
             duration = time.time() - start_time
@@ -203,10 +197,10 @@ class SupplierImportQueue(models.Model):
             }
             summary = temp_wizard._create_import_summary(stats)
             
-            if self.cleanup_old_supplierinfo:
-                summary += f"\n\nCleanup:\n" \
-                          f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
-                          f"- Gearchiveerd: {cleanup_stats['archived']} + {archived_count} producten"
+            # Add cleanup stats to summary
+            summary += f"\n\nCleanup:\n" \
+                      f"- Verwijderd: {cleanup_stats['removed']} oude leverancier regels\n" \
+                      f"- Gearchiveerd: {archived_count} producten (geen leveranciers + geen voorraad)"
             
             # Update history record
             original_history.write({
