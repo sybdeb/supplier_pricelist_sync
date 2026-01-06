@@ -31,6 +31,8 @@ Built for Odoo 19 Community Edition
         "views/supplier_mapping_template_views.xml",
         "views/product_supplierinfo_views.xml",
         "views/product_template_views.xml",
+        # "views/brand_mapping_views.xml",  # Tijdelijk uitgeschakeld
+        # "views/res_partner_views.xml",     # Tijdelijk uitgeschakeld - wordt via restart geladen
         "views/menus.xml",
     ],
     "installable": True,

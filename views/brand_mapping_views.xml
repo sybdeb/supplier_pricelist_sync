@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_supplier_brand_mapping_tree" model="ir.ui.view">
+        <field name="name">supplier.brand.mapping.tree</field>
+        <field name="model">supplier.brand.mapping</field>
+        <field name="arch" type="xml">
+            <tree string="Brand Mappings" editable="bottom">
+                <field name="supplier_id" invisible="context.get('default_supplier_id')"/>
+                <field name="csv_brand_name" string="CSV Brand Naam"/>
+                <field name="odoo_brand_id" string="Odoo Merk"/>
+                <field name="odoo_brand_name" string="Odoo Merk Naam"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_supplier_brand_mapping_form" model="ir.ui.view">
+        <field name="name">supplier.brand.mapping.form</field>
+        <field name="model">supplier.brand.mapping</field>
+        <field name="arch" type="xml">
+            <form string="Brand Mapping">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="supplier_id"/>
+                            <field name="csv_brand_name"/>
+                        </group>
+                        <group>
+                            <field name="odoo_brand_id"/>
+                            <field name="odoo_brand_name"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_supplier_brand_mapping" model="ir.actions.act_window">
+        <field name="name">Brand Mappings</field>
+        <field name="res_model">supplier.brand.mapping</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Creëer een brand naam mapping
+            </p>
+            <p>
+                Map brand namen uit CSV bestanden naar Odoo merken.<br/>
+                Bijvoorbeeld: CSV "Glorious" → Odoo "Glorious Gaming"
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem 
+        id="menu_supplier_brand_mapping"
+        name="Brand Mappings"
+        parent="menu_supplier_import_advanced"
+        action="action_supplier_brand_mapping"
+        sequence="60"/>
+</odoo>

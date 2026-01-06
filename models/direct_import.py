@@ -623,12 +623,14 @@ class DirectImport(models.TransientModel):
                 # Parse all fields for this row
                 row_data = self._parse_row_data(row, mapping)
                 
-                # Apply filters
-                filter_reason = self._should_filter_row(row_data)
-                if filter_reason:
+                # Apply filters - now returns list of all applicable reasons
+                filter_reasons = self._should_filter_row(row_data)
+                if filter_reasons:
                     prescan_data['filtered'].append(row_num)
-                    if filter_reason in prescan_data['skip_reasons']:
-                        prescan_data['skip_reasons'][filter_reason] += 1
+                    # Count each reason separately (row can have multiple reasons)
+                    for reason in filter_reasons:
+                        if reason in prescan_data['skip_reasons']:
+                            prescan_data['skip_reasons'][reason] += 1
                     continue
                 
                 # Check if product exists
@@ -719,55 +721,92 @@ class DirectImport(models.TransientModel):
     
     def _should_filter_row(self, row_data):
         """Check if row should be filtered out based on skip conditions
-        Returns skip reason string if filtered, False otherwise"""
+        Returns list of skip reasons (can be multiple), or empty list if not filtered"""
         supplierinfo_fields = row_data.get('supplierinfo_fields', {})
         product_fields = row_data.get('product_fields', {})
+        
+        skip_reasons = []
         
         # Stock filter - skip if below minimum
         if self.min_stock_qty > 0:
             stock_qty = supplierinfo_fields.get('supplier_stock', 0)
             if stock_qty < self.min_stock_qty:
-                return 'below_min_stock'
+                skip_reasons.append('below_min_stock')
         
         # Price filter - skip if below minimum
         if self.min_price > 0.0:
             price = supplierinfo_fields.get('price', 0.0)
             if price < self.min_price:
-                return 'below_min_price'
+                skip_reasons.append('below_min_price')
         
         # Discontinued filter
         if self.skip_discontinued:
             if product_fields.get('discontinued') or product_fields.get('is_discontinued'):
-                return 'discontinued'
+                skip_reasons.append('discontinued')
         
         # Brand blacklist filter met EAN whitelist escape
+        _logger.info(f"DEBUG: brand_blacklist_ids count = {len(self.brand_blacklist_ids)}, IDs = {self.brand_blacklist_ids.ids}")
         if self.brand_blacklist_ids:
             # Get brand names from Many2many (case-insensitive)
-            blacklisted_brands = set(brand.name.lower() for brand in self.brand_blacklist_ids)
+            blacklisted_brands = [brand.name.lower() for brand in self.brand_blacklist_ids]
+            _logger.info(f"DEBUG: blacklisted_brands list = {blacklisted_brands}")
             
             if blacklisted_brands:
                 # Check product brand
-                product_brand = product_fields.get('brand', '').strip().lower()
-                if product_brand in blacklisted_brands:
-                    # Merk staat op blacklist! Check EAN whitelist
-                    if self.ean_whitelist:
-                        # Parse EAN whitelist
-                        whitelisted_eans = set()
-                        for line in (self.ean_whitelist or '').replace(',', '\n').split('\n'):
-                            ean = line.strip()
-                            if ean:
-                                whitelisted_eans.add(ean)
-                        
-                        # Check of product EAN op whitelist staat
-                        product_ean = product_fields.get('barcode', '') or product_fields.get('ean', '')
-                        if product_ean and product_ean in whitelisted_eans:
-                            # EAN staat op whitelist - niet filteren ondanks blacklist
-                            return False
+                csv_brand_name = product_fields.get('brand', '').strip()
+                if csv_brand_name:
+                    # Probeer eerst een brand mapping te vinden
+                    mapped_brand = self.env['supplier.brand.mapping'].get_mapped_brand(
+                        self.supplier_id.id if hasattr(self, 'supplier_id') else False,
+                        csv_brand_name
+                    )
                     
-                    # Merk staat op blacklist en EAN niet op whitelist - filteren
-                    return 'brand_blacklist'
+                    # Gebruik gemapte brand als die bestaat, anders de CSV naam
+                    brand_to_check = (mapped_brand.name if mapped_brand else csv_brand_name).lower()
+                    _logger.info(f"Brand check: CSV '{csv_brand_name}' → checking '{brand_to_check}' (mapped={bool(mapped_brand)})")
+                    
+                    # Check if brand matches any blacklisted brand
+                    brand_matched = False
+                    for blacklisted in blacklisted_brands:
+                        # Exact match als we een mapping hebben, anders partial match
+                        if mapped_brand:
+                            if brand_to_check == blacklisted:
+                                brand_matched = True
+                                _logger.info(f"Brand MATCH (mapped): '{csv_brand_name}' → '{brand_to_check}' matches blacklist '{blacklisted}'")
+                                break
+                        else:
+                            # Fallback naar partial matching als geen mapping
+                            if brand_to_check in blacklisted or blacklisted in brand_to_check:
+                                brand_matched = True
+                                _logger.info(f"Brand MATCH (partial): '{csv_brand_name}' matches blacklist '{blacklisted}'")
+                                break
+                    
+                    if not brand_matched and csv_brand_name:
+                        _logger.debug(f"Brand NO match: '{csv_brand_name}' (checking '{brand_to_check}') vs blacklist {blacklisted_brands}")
+                    
+                    if brand_matched:
+                        # Merk staat op blacklist! Check EAN whitelist
+                        if self.ean_whitelist:
+                            # Parse EAN whitelist
+                            whitelisted_eans = set()
+                            for line in (self.ean_whitelist or '').replace(',', '\n').split('\n'):
+                                ean = line.strip()
+                                if ean:
+                                    whitelisted_eans.add(ean)
+                            
+                            # Check of product EAN op whitelist staat
+                            product_ean = product_fields.get('barcode', '') or product_fields.get('ean', '')
+                            if product_ean and product_ean in whitelisted_eans:
+                                # EAN staat op whitelist - skip deze filter
+                                pass
+                            else:
+                                # Niet op whitelist - tel mee
+                                skip_reasons.append('brand_blacklist')
+                        else:
+                            # Geen whitelist, gewoon blacklist
+                            skip_reasons.append('brand_blacklist')
         
-        return False
+        return skip_reasons  # Return list of all applicable skip reasons
     
     def _cleanup_old_supplierinfo(self, prescan_data, history_id):
         """

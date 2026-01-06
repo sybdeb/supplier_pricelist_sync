@@ -17,6 +17,13 @@ class ResPartner(models.Model):
         readonly=True
     )
     
+    brand_mapping_ids = fields.One2many(
+        'supplier.brand.mapping',
+        'supplier_id',
+        string="Brand Mappings",
+        help="Map CSV brand namen naar Odoo merken"
+    )
+    
     @api.depends("supplier_rank")
     def _compute_is_supplier_sync(self):
         for partner in self:

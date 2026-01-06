@@ -8,3 +8,4 @@ access_supplier_import_history,supplier.import.history,model_supplier_import_his
 access_supplier_import_error,supplier.import.error,model_supplier_import_error,,1,1,1,1
 access_supplier_import_queue,supplier.import.queue,model_supplier_import_queue,,1,1,1,1
 access_supplier_import_schedule,supplier.import.schedule,model_supplier_import_schedule,,1,1,1,1
+access_supplier_brand_mapping,supplier.brand.mapping,model_supplier_brand_mapping,,1,1,1,1

@@ -141,6 +141,7 @@ class SupplierImportQueue(models.Model):
         try:
             # Create temporary wizard instance to use the new bulk import methods
             DirectImport = self.env['supplier.direct.import']
+            _logger.info(f"DEBUG QUEUE: Queue has brand_blacklist_ids count = {len(self.brand_blacklist_ids)}, IDs = {self.brand_blacklist_ids.ids}")
             temp_wizard = DirectImport.create({
                 'supplier_id': self.supplier_id.id,
                 'csv_file': self.csv_file,
@@ -153,6 +154,7 @@ class SupplierImportQueue(models.Model):
                 'brand_blacklist_ids': [(6, 0, self.brand_blacklist_ids.ids)],
                 'ean_whitelist': self.ean_whitelist or '',
             })
+            _logger.info(f"DEBUG WIZARD: Created temp_wizard with brand_blacklist_ids count = {len(temp_wizard.brand_blacklist_ids)}, IDs = {temp_wizard.brand_blacklist_ids.ids}")
             
             # Save the original history reference
             original_history = self.history_id
@@ -194,13 +196,14 @@ class SupplierImportQueue(models.Model):
             # Calculate duration
             duration = time.time() - start_time
             
-            # Build summary
+            # Build summary with skip reasons
             stats = {
                 'total': total_rows,
                 'created': created_count,
                 'updated': updated_count,
                 'skipped': len(prescan_data['filtered']),
                 'errors': prescan_data['error_rows'],
+                'skip_reasons': prescan_data.get('skip_reasons', {}),  # Add skip reasons breakdown
             }
             summary = temp_wizard._create_import_summary(stats)
             
