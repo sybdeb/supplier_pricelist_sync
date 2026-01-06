@@ -843,6 +843,7 @@ class DirectImport(models.TransientModel):
         archived_count = 0
         
         # Find active products without any supplierinfo AND without stock
+        # Note: Check stock via stock.quant table (qty_available is a computed field)
         self.env.cr.execute("""
             SELECT pt.id 
             FROM product_template pt
@@ -851,7 +852,12 @@ class DirectImport(models.TransientModel):
                 SELECT 1 FROM product_supplierinfo si 
                 WHERE si.product_tmpl_id = pt.id
             )
-            AND pt.qty_available = 0
+            AND NOT EXISTS (
+                SELECT 1 FROM stock_quant sq
+                JOIN product_product pp ON pp.id = sq.product_id
+                WHERE pp.product_tmpl_id = pt.id
+                AND sq.quantity > 0
+            )
         """)
         
         product_ids = [r[0] for r in self.env.cr.fetchall()]
