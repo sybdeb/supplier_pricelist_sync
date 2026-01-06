@@ -422,7 +422,7 @@ class DirectImport(models.TransientModel):
             # STEP 5: POST-PROCESS (archive/reactivate products)
             _logger.info("=== STEP 5: POST-PROCESS ===")
             archived_count = self._archive_products_without_suppliers()
-            reactivated_count = self._reactivate_products_with_suppliers()
+            reactivated_count = self._reactivate_products_with_suppliers(prescan_data)
             
             # Calculate duration
             duration = time.time() - start_time
@@ -872,22 +872,34 @@ class DirectImport(models.TransientModel):
         
         return archived_count
     
-    def _reactivate_products_with_suppliers(self):
+    def _reactivate_products_with_suppliers(self, prescan_data):
         """
-        Reactivate archived products that now have supplier info again
+        Reactivate archived products that were updated in THIS import and have supplier info
+        Only checks products that were part of this import, not all inactive products
         """
         reactivated_count = 0
         
-        # Find inactive products that DO have supplierinfo
+        # Get product IDs that were in this import
+        import_product_ids = set()
+        for row_data in prescan_data['update_codes'].values():
+            if row_data.get('_product_id'):
+                product = self.env['product.product'].browse(row_data['_product_id'])
+                import_product_ids.add(product.product_tmpl_id.id)
+        
+        if not import_product_ids:
+            return reactivated_count
+        
+        # Find inactive products from this import that now have supplierinfo
         self.env.cr.execute("""
             SELECT DISTINCT pt.id 
             FROM product_template pt
             WHERE pt.active = false
+            AND pt.id = ANY(%s)
             AND EXISTS (
                 SELECT 1 FROM product_supplierinfo si 
                 WHERE si.product_tmpl_id = pt.id
             )
-        """)
+        """, (list(import_product_ids),))
         
         product_ids = [r[0] for r in self.env.cr.fetchall()]
         

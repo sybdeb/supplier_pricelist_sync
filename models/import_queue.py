@@ -183,7 +183,7 @@ class SupplierImportQueue(models.Model):
             # STEP 5: POST-PROCESS
             _logger.info("=== BACKGROUND IMPORT: STEP 5 POST-PROCESS ===")
             archived_count = temp_wizard._archive_products_without_suppliers()
-            reactivated_count = temp_wizard._reactivate_products_with_suppliers()
+            reactivated_count = temp_wizard._reactivate_products_with_suppliers(prescan_data)
             
             # Calculate duration
             duration = time.time() - start_time
