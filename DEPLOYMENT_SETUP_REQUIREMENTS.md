@@ -431,29 +431,37 @@ while read oldrev newrev refname; do
         continue
     fi
     
-    # Checkout full repo to temp directory
-    log "Checking out code to ${WORK_TREE}"
+    # Extract files from bare repo to temp directory
+    log "Extracting code to ${WORK_TREE}"
     rm -rf "$WORK_TREE"
-    git --work-tree="$WORK_TREE" --git-dir="$PWD" checkout -f
+    mkdir -p "$WORK_TREE"
+    git archive $newrev | tar -x -C "$WORK_TREE"
     
-    # Detect changed modules
+    # Detect changed modules - IMPROVED: Works with merges, rebases, cherry-picks
     if [ "$oldrev" = "0000000000000000000000000000000000000000" ]; then
         # First push - deploy all modules
         log "First push detected - deploying all modules"
-        CHANGED_MODULES=$(find "$WORK_TREE" -maxdepth 2 -name "__manifest__.py" -o -name "__openerp__.py" | xargs -n1 dirname | xargs -n1 basename | sort -u)
+        ALL_MODULES=$(find "$WORK_TREE" -maxdepth 2 -name "__manifest__.py" -o -name "__openerp__.py" | xargs -n1 dirname | xargs -n1 basename | sort -u)
+        CHANGED_MODULES="$ALL_MODULES"
     else
-        # Find changed files and extract module directories
-        CHANGED_FILES=$(git diff --name-only $oldrev $newrev)
-        CHANGED_MODULES=$(echo "$CHANGED_FILES" | grep -o '^[^/]*' | sort -u)
+        # Scan working tree and compare with live deployment
+        log "Scanning for new or modified modules in working tree"
+        ALL_MODULES=$(find "$WORK_TREE" -maxdepth 2 -name "__manifest__.py" -o -name "__openerp__.py" | xargs -n1 dirname | xargs -n1 basename | sort -u)
         
-        # Filter to only modules with __manifest__.py
-        VALIDATED_MODULES=""
-        for module in $CHANGED_MODULES; do
-            if [ -f "$WORK_TREE/$module/__manifest__.py" ] || [ -f "$WORK_TREE/$module/__openerp__.py" ]; then
-                VALIDATED_MODULES="$VALIDATED_MODULES $module"
+        CHANGED_MODULES=""
+        for module in $ALL_MODULES; do
+            # Check if module exists in target dir
+            if [ ! -d "${BASE_TARGET_DIR}/${module}" ]; then
+                log "   New module detected: $module"
+                CHANGED_MODULES="$CHANGED_MODULES $module"
+            else
+                # Check if __manifest__.py has changes (indicates module update)
+                if ! diff -q "$WORK_TREE/$module/__manifest__.py" "${BASE_TARGET_DIR}/${module}/__manifest__.py" > /dev/null 2>&1; then
+                    log "   Modified module detected: $module (manifest changed)"
+                    CHANGED_MODULES="$CHANGED_MODULES $module"
+                fi
             fi
         done
-        CHANGED_MODULES=$VALIDATED_MODULES
     fi
     
     if [ -z "$CHANGED_MODULES" ]; then
@@ -598,11 +606,12 @@ def upgrade_module(env, module_name):
     # Get models proxy
     models = xmlrpc.client.ServerProxy(f"{config['url']}/xmlrpc/2/object")
     
-    # Update module list first
+    # Update module list first (Odoo 19 compatible)
     try:
+        # Call without arguments - Odoo 19 doesn't accept empty list
         models.execute_kw(
             config['db'], uid, config['password'],
-            'ir.module.module', 'update_list', []
+            'ir.module.module', 'update_list', [[]]
         )
         print("📋 Module list updated")
     except Exception as e:

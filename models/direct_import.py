@@ -464,10 +464,19 @@ class DirectImport(models.TransientModel):
             })
             
             # Save errors to database
+            _logger.info(f"DEBUG: About to check error_rows - count={len(prescan_data['error_rows'])}, bool={bool(prescan_data['error_rows'])}")
             if prescan_data['error_rows']:
                 _logger.info(f"Saving {len(prescan_data['error_rows'])} errors to database")
+                error_save_count = 0
                 for error_data in prescan_data['error_rows']:
                     try:
+                        # Simplify row_data serialization to avoid nested JSON issues
+                        row_data_simple = error_data.get('row_data', {})
+                        if isinstance(row_data_simple, dict) and '_barcode' in row_data_simple:
+                            # Strip out nested dicts to prevent circular reference issues
+                            row_data_simple = {k: v for k, v in row_data_simple.items() 
+                                             if not isinstance(v, (dict, list))}
+                        
                         self.env['supplier.import.error'].create({
                             'history_id': history.id,
                             'row_number': error_data.get('row', 0),
@@ -476,13 +485,17 @@ class DirectImport(models.TransientModel):
                             'product_code': error_data.get('product_code', ''),
                             'product_name': error_data.get('product_name', ''),
                             'brand': error_data.get('brand', ''),
-                            'csv_data': json.dumps(error_data.get('row_data', {})) if error_data.get('row_data') else '',
+                            'csv_data': json.dumps(row_data_simple) if row_data_simple else '',
                             'error_message': error_data.get('error', 'Unknown error'),
                         })
+                        error_save_count += 1
                     except Exception as e:
-                        _logger.error(f"Could not save error record: {e}")
+                        _logger.error(f"Could not save error record for row {error_data.get('row')}: {e}")
+                
                 self.env.cr.commit()
-                _logger.info("Errors saved successfully")
+                _logger.info(f"Errors saved successfully: {error_save_count}/{len(prescan_data['error_rows'])} records")
+            else:
+                _logger.info("No errors to save")
             
             # Update supplier's last sync date
             try:
@@ -491,16 +504,14 @@ class DirectImport(models.TransientModel):
                 _logger.warning(f"Could not update supplier last_sync_date: {e}")
             
             # AUTO-SAVE mapping as template for this supplier
-            self._auto_save_mapping_template(mapping)
+            try:
+                self._auto_save_mapping_template(mapping)
+            except Exception as e:
+                _logger.warning(f"Could not auto-save mapping template: {e}")
             
             self.import_summary = summary
             
             _logger.info(f"=== IMPORT COMPLETE: {duration:.1f}s, {total_rows/duration:.0f} rows/sec ===")
-            
-            # Close wizard and show notification
-            return {
-                'type': 'ir.actions.act_window_close',
-            }
             
         except Exception as e:
             # Mark history as failed
@@ -510,6 +521,11 @@ class DirectImport(models.TransientModel):
                     'summary': f"Import failed: {str(e)}",
                 })
             raise UserError(f"Import failed: {str(e)}")
+        
+        # ALWAYS close wizard - moved outside try/except
+        return {
+            'type': 'ir.actions.act_window_close',
+        }
     
     
     # =========================================================================
