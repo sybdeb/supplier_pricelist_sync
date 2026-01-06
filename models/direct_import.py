@@ -102,6 +102,19 @@ class DirectImport(models.TransientModel):
         help="Als aangevinkt: skip producten gemarkeerd als discontinued in CSV"
     )
     
+    # Merk filtering
+    brand_blacklist = fields.Text(
+        string='Merk Blacklist',
+        help="Merken die geskipt moeten worden (één merk per regel of komma-gescheiden).\n"
+             "Producten van deze merken worden niet geïmporteerd, tenzij hun EAN op de whitelist staat."
+    )
+    
+    ean_whitelist = fields.Text(
+        string='EAN Whitelist (voor geblackliste merken)',
+        help="EAN codes die WEL geïmporteerd moeten worden, zelfs als het merk op de blacklist staat.\n"
+             "Eén EAN per regel of komma-gescheiden. Gebruik dit voor uitzonderingen op de merk blacklist."
+    )
+    
     # Import results
     import_summary = fields.Text('Import Summary', readonly=True)
     
@@ -158,6 +171,8 @@ class DirectImport(models.TransientModel):
             self.skip_zero_price = self.template_id.skip_zero_price
             self.min_price = self.template_id.min_price
             self.skip_discontinued = self.template_id.skip_discontinued
+            self.brand_blacklist = self.template_id.brand_blacklist
+            self.ean_whitelist = self.template_id.ean_whitelist
             
             _logger.info(f"Template '{self.template_id.name}' loaded. "
                         f"Skip conditions applied. Mapping will be applied after CSV parse.")
@@ -168,6 +183,8 @@ class DirectImport(models.TransientModel):
             self.skip_zero_price = True
             self.min_price = 0.0
             self.skip_discontinued = False
+            self.brand_blacklist = False
+            self.ean_whitelist = False
     
     # =========================================================================
     # PARSING & AUTO-MAPPING
@@ -710,6 +727,37 @@ class DirectImport(models.TransientModel):
         if self.skip_discontinued:
             if product_fields.get('discontinued') or product_fields.get('is_discontinued'):
                 return True
+        
+        # Brand blacklist filter met EAN whitelist escape
+        if self.brand_blacklist:
+            # Parse blacklist (één merk per regel of komma-gescheiden)
+            blacklisted_brands = set()
+            for line in (self.brand_blacklist or '').replace(',', '\n').split('\n'):
+                brand = line.strip().lower()
+                if brand:
+                    blacklisted_brands.add(brand)
+            
+            if blacklisted_brands:
+                # Check product brand
+                product_brand = product_fields.get('brand', '').strip().lower()
+                if product_brand in blacklisted_brands:
+                    # Merk staat op blacklist! Check EAN whitelist
+                    if self.ean_whitelist:
+                        # Parse EAN whitelist
+                        whitelisted_eans = set()
+                        for line in (self.ean_whitelist or '').replace(',', '\n').split('\n'):
+                            ean = line.strip()
+                            if ean:
+                                whitelisted_eans.add(ean)
+                        
+                        # Check of product EAN op whitelist staat
+                        product_ean = product_fields.get('barcode', '') or product_fields.get('ean', '')
+                        if product_ean and product_ean in whitelisted_eans:
+                            # EAN staat op whitelist - niet filteren ondanks blacklist
+                            return False
+                    
+                    # Merk staat op blacklist en EAN niet op whitelist - filteren
+                    return True
         
         return False
     

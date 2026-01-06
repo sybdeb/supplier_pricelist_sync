@@ -84,6 +84,19 @@ class SupplierMappingTemplate(models.Model):
         help="Als aangevinkt: skip producten gemarkeerd als discontinued in CSV"
     )
     
+    # Merk filtering
+    brand_blacklist = fields.Text(
+        string='Merk Blacklist',
+        help="Merken die geskipt moeten worden (één merk per regel of komma-gescheiden).\n"
+             "Producten van deze merken worden niet geïmporteerd, tenzij hun EAN op de whitelist staat."
+    )
+    
+    ean_whitelist = fields.Text(
+        string='EAN Whitelist (voor geblackliste merken)',
+        help="EAN codes die WEL geïmporteerd moeten worden, zelfs als het merk op de blacklist staat.\n"
+             "Eén EAN per regel of komma-gescheiden. Gebruik dit voor uitzonderingen op de merk blacklist."
+    )
+    
     required_fields = fields.Char(
         string='Verplichte Velden',
         help="Komma-gescheiden lijst van CSV kolommen die gevuld moeten zijn (bijv: 'ean,price,stock')"
