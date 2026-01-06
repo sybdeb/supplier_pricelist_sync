@@ -1054,64 +1054,6 @@ class DirectImport(models.TransientModel):
         # Track product template ID (voor cleanup oude supplierinfo)
         stats.get('processed_products', set()).add(product.product_tmpl_id.id)
     
-    def _cleanup_old_supplierinfo(self, stats):
-        """
-        Cleanup oude supplierinfo records die NIET in huidige import zaten.
-        Archiveer producten die geen enkele leverancier meer hebben.
-        
-        Returns dict met cleanup statistieken
-        """
-        cleanup_stats = {'removed': 0, 'archived': 0}
-        
-        try:
-            # Verzamel alle product IDs die WEL geïmporteerd zijn
-            imported_product_ids = set()
-            if stats.get('history_id'):
-                # Haal product IDs op van succesvol geïmporteerde rijen
-                # (created + updated, NIET skipped of errors)
-                # Via last_sync_date die we bij elke row zetten
-                recent_supplierinfo = self.env['product.supplierinfo'].search([
-                    ('partner_id', '=', self.supplier_id.id),
-                    ('last_sync_date', '>=', fields.Datetime.now() - timedelta(minutes=5))
-                ])
-                imported_product_ids = set(recent_supplierinfo.mapped('product_tmpl_id').ids)
-            
-            if not imported_product_ids:
-                _logger.warning("No imported products found for cleanup check")
-                return cleanup_stats
-            
-            # Zoek OUDE supplierinfo van deze leverancier die NIET geüpdatet zijn
-            old_supplierinfo = self.env['product.supplierinfo'].search([
-                ('partner_id', '=', self.supplier_id.id),
-                ('product_tmpl_id', 'not in', list(imported_product_ids))
-            ])
-            
-            if old_supplierinfo:
-                affected_products = old_supplierinfo.mapped('product_tmpl_id')
-                
-                # Verwijder oude supplierinfo
-                cleanup_stats['removed'] = len(old_supplierinfo)
-                _logger.info(f"Cleanup: Verwijderen {cleanup_stats['removed']} oude leverancier regels voor {len(affected_products)} producten")
-                old_supplierinfo.unlink()
-                
-                # Check welke producten nu GEEN leveranciers meer hebben
-                for product in affected_products:
-                    remaining_suppliers = self.env['product.supplierinfo'].search_count([
-                        ('product_tmpl_id', '=', product.id)
-                    ])
-                    
-                    if remaining_suppliers == 0 and product.active:
-                        # Geen leveranciers meer → Archiveer product
-                        product.write({'active': False})
-                        cleanup_stats['archived'] += 1
-                        _logger.info(f"Product {product.default_code} gearchiveerd (geen leveranciers meer)")
-            
-            return cleanup_stats
-            
-        except Exception as e:
-            _logger.error(f"Cleanup failed: {e}", exc_info=True)
-            return cleanup_stats
-    
     def _convert_field_value(self, model, field_name, string_value):
         """Convert string value to correct field type"""
         try:
