@@ -85,6 +85,45 @@
                         </div>
                     </div>
                     
+                    <!-- Import Filtering Section -->
+                    <div invisible="not mapping_lines">
+                        <group>
+                            <group string="🔍 Import Filtering">
+                                <label for="skip_out_of_stock" string="Voorraad Filters"/>
+                                <div>
+                                    <field name="skip_out_of_stock" nolabel="1" class="oe_inline"/>
+                                    <span class="oe_inline ml-2">Skip als Voorraad = 0</span>
+                                </div>
+                                <field name="min_stock_qty" string="Minimum Voorraad"/>
+                                
+                                <label for="skip_zero_price" string="Prijs Filters"/>
+                                <div>
+                                    <field name="skip_zero_price" nolabel="1" class="oe_inline"/>
+                                    <span class="oe_inline ml-2">Skip als Prijs = 0</span>
+                                </div>
+                                <field name="min_price" string="Minimum Prijs"/>
+                                
+                                <label for="skip_discontinued" string="Overige"/>
+                                <div>
+                                    <field name="skip_discontinued" nolabel="1" class="oe_inline"/>
+                                    <span class="oe_inline ml-2">Skip Discontinued</span>
+                                </div>
+                            </group>
+                            
+                            <group string="🏷️ Merk Filtering">
+                                <field name="brand_blacklist" widget="text" placeholder="Samsung&#10;LG&#10;Sony&#10;&#10;(één merk per regel)" nolabel="1"/>
+                                <label for="ean_whitelist" string="EAN Whitelist (escapes)"/>
+                                <field name="ean_whitelist" widget="text" placeholder="8712345678901&#10;8712345678902&#10;&#10;(één EAN per regel)" nolabel="1"/>
+                                <div class="alert alert-info" role="alert">
+                                    <small>
+                                        <strong>Merk blacklist:</strong> Skip producten van deze merken.<br/>
+                                        <strong>EAN whitelist:</strong> Importeer deze EANs WEL, ondanks blacklist.
+                                    </small>
+                                </div>
+                            </group>
+                        </group>
+                    </div>
+                    
                     <!-- Import Summary -->
                     <div invisible="not import_summary">
                         <h3>📊 Import Resultaat</h3>

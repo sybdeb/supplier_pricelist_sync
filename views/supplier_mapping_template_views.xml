@@ -75,6 +75,19 @@
                                     </div>
                                 </group>
                             </group>
+                            <group>
+                                <group string="Merk Filtering">
+                                    <field name="brand_blacklist" widget="text" placeholder="Samsung&#10;LG&#10;Sony&#10;&#10;(één merk per regel of komma-gescheiden)"/>
+                                </group>
+                                <group string="EAN Whitelist (voor geblackliste merken)">
+                                    <field name="ean_whitelist" widget="text" placeholder="8712345678901&#10;8712345678902&#10;&#10;(één EAN per regel of komma-gescheiden)"/>
+                                    <div class="alert alert-warning" role="alert">
+                                        <strong>Let op:</strong>
+                                        <p>Merk blacklist skipped producten van deze merken.</p>
+                                        <p>EAN whitelist maakt uitzonderingen: deze EANs worden WEL geïmporteerd, zelfs als het merk op de blacklist staat.</p>
+                                    </div>
+                                </group>
+                            </group>
                         </page>
                     </notebook>
                 </sheet>
