@@ -56,19 +56,8 @@
                         <separator string="🔍 Import Filtering" colspan="2"/>
                         <group>
                             <group string="Voorraad &amp; Prijs Filters">
-                                <label for="skip_out_of_stock" string="Voorraad Filters"/>
-                                <div>
-                                    <field name="skip_out_of_stock" nolabel="1" class="oe_inline"/>
-                                    <span class="oe_inline ml-2">Skip als Voorraad = 0</span>
-                                </div>
-                                <field name="min_stock_qty" string="Minimum Voorraad"/>
-                                
-                                <label for="skip_zero_price" string="Prijs Filters"/>
-                                <div>
-                                    <field name="skip_zero_price" nolabel="1" class="oe_inline"/>
-                                    <span class="oe_inline ml-2">Skip als Prijs = 0</span>
-                                </div>
-                                <field name="min_price" string="Minimum Prijs"/>
+                                <field name="min_stock_qty" string="Minimum Voorraad (skip als lager)"/>
+                                <field name="min_price" string="Minimum Prijs (skip als lager)"/>
                                 
                                 <label for="skip_discontinued" string="Overige"/>
                                 <div>

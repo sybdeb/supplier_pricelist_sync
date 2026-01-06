@@ -72,22 +72,10 @@ class DirectImport(models.TransientModel):
     )
     
     # Skip voorwaarden (kunnen uit template geladen worden)
-    skip_out_of_stock = fields.Boolean(
-        string='Skip als Voorraad = 0',
-        default=False,
-        help="Als aangevinkt: skip producten met voorraad 0"
-    )
-    
     min_stock_qty = fields.Integer(
         string='Minimum Voorraad',
         default=0,
         help="Skip producten met voorraad lager dan dit aantal (0 = uitgeschakeld)"
-    )
-    
-    skip_zero_price = fields.Boolean(
-        string='Skip als Prijs = 0',
-        default=True,
-        help="Als aangevinkt: skip producten zonder prijs"
     )
     
     min_price = fields.Float(
@@ -185,9 +173,7 @@ class DirectImport(models.TransientModel):
         """Load mapping configuration from template when selected"""
         if self.template_id:
             # Load skip conditions from template
-            self.skip_out_of_stock = self.template_id.skip_out_of_stock
             self.min_stock_qty = self.template_id.min_stock_qty
-            self.skip_zero_price = self.template_id.skip_zero_price
             self.min_price = self.template_id.min_price
             self.skip_discontinued = self.template_id.skip_discontinued
             self.brand_blacklist_ids = [(6, 0, self.template_id.brand_blacklist_ids.ids)]
@@ -197,9 +183,7 @@ class DirectImport(models.TransientModel):
                         f"Skip conditions applied. Mapping will be applied after CSV parse.")
         else:
             # Reset to defaults when template is cleared
-            self.skip_out_of_stock = False
             self.min_stock_qty = 0
-            self.skip_zero_price = True
             self.min_price = 0.0
             self.skip_discontinued = False
             self.brand_blacklist_ids = [(5, 0, 0)]
@@ -435,11 +419,11 @@ class DirectImport(models.TransientModel):
                 'csv_separator': self.csv_separator,
                 'mapping': str(mapping),  # Store as string (will eval() later)
                 # Filter settings
-                'skip_out_of_stock': self.skip_out_of_stock,
                 'min_stock_qty': self.min_stock_qty,
-                'skip_zero_price': self.skip_zero_price,
                 'min_price': self.min_price,
                 'skip_discontinued': self.skip_discontinued,
+                'brand_blacklist_ids': [(6, 0, self.brand_blacklist_ids.ids)],
+                'ean_whitelist': self.ean_whitelist or '',
             })
             
             return {
@@ -739,20 +723,16 @@ class DirectImport(models.TransientModel):
         supplierinfo_fields = row_data.get('supplierinfo_fields', {})
         product_fields = row_data.get('product_fields', {})
         
-        # Stock filters
-        if self.skip_out_of_stock or self.min_stock_qty > 0:
+        # Stock filter - skip if below minimum
+        if self.min_stock_qty > 0:
             stock_qty = supplierinfo_fields.get('supplier_stock', 0)
-            if self.skip_out_of_stock and stock_qty == 0:
-                return 'out_of_stock'
-            if self.min_stock_qty > 0 and stock_qty < self.min_stock_qty:
+            if stock_qty < self.min_stock_qty:
                 return 'below_min_stock'
         
-        # Price filters
-        if self.skip_zero_price or self.min_price > 0.0:
+        # Price filter - skip if below minimum
+        if self.min_price > 0.0:
             price = supplierinfo_fields.get('price', 0.0)
-            if self.skip_zero_price and price == 0.0:
-                return 'zero_price'
-            if self.min_price > 0.0 and price < self.min_price:
+            if price < self.min_price:
                 return 'below_min_price'
         
         # Discontinued filter
@@ -1283,12 +1263,8 @@ class DirectImport(models.TransientModel):
         
         # Show active filters
         active_filters = []
-        if self.skip_zero_price:
-            active_filters.append("Prijs = 0")
         if self.min_price > 0:
             active_filters.append(f"Prijs < €{self.min_price:.2f}")
-        if self.skip_out_of_stock:
-            active_filters.append("Voorraad = 0")
         if self.min_stock_qty > 0:
             active_filters.append(f"Voorraad < {self.min_stock_qty}")
         if self.skip_discontinued:
@@ -1309,12 +1285,8 @@ class DirectImport(models.TransientModel):
             if any(skip_reasons.values()):
                 summary_lines.append("")
                 summary_lines.append("📋 Overgeslagen redenen:")
-                if skip_reasons.get('out_of_stock'):
-                    summary_lines.append(f"  • Geen voorraad: {skip_reasons['out_of_stock']}")
                 if skip_reasons.get('below_min_stock'):
                     summary_lines.append(f"  • Onder minimum voorraad: {skip_reasons['below_min_stock']}")
-                if skip_reasons.get('zero_price'):
-                    summary_lines.append(f"  • Prijs = 0: {skip_reasons['zero_price']}")
                 if skip_reasons.get('below_min_price'):
                     summary_lines.append(f"  • Onder minimum prijs: {skip_reasons['below_min_price']}")
                 if skip_reasons.get('discontinued'):
@@ -1355,19 +1327,28 @@ class DirectImport(models.TransientModel):
                     'odoo_field': line.odoo_field,
                 }))
         
+        # Prepare template values
+        template_vals = {
+            'mapping_line_ids': [(5, 0, 0)] + line_vals,  # Clear + recreate
+            # Filter settings
+            'min_stock_qty': self.min_stock_qty,
+            'min_price': self.min_price,
+            'skip_discontinued': self.skip_discontinued,
+            'brand_blacklist_ids': [(6, 0, self.brand_blacklist_ids.ids)],
+            'ean_whitelist': self.ean_whitelist or '',
+        }
+        
         if template:
             # Update existing
-            template.write({
-                'mapping_line_ids': [(5, 0, 0)] + line_vals  # Clear + recreate
-            })
+            template.write(template_vals)
             message = f"Template bijgewerkt voor {self.supplier_id.name}"
         else:
             # Create new
-            self.env['supplier.mapping.template'].create({
+            template_vals.update({
                 'supplier_id': self.supplier_id.id,
                 'name': f"Mapping voor {self.supplier_id.name}",
-                'mapping_line_ids': line_vals
             })
+            self.env['supplier.mapping.template'].create(template_vals)
             message = f"Template opgeslagen voor {self.supplier_id.name}"
         
         return {

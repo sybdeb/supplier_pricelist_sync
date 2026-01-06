@@ -50,20 +50,16 @@
                         
                         <page string="Skip Voorwaarden" name="skip_conditions">
                             <group>
-                                <group string="Voorraad Filters">
-                                    <field name="skip_out_of_stock"/>
-                                    <field name="min_stock_qty"/>
+                                <group string="Voorraad &amp; Prijs Filters">
+                                    <field name="min_stock_qty" string="Minimum Voorraad (skip als lager)"/>
+                                    <field name="min_price" string="Minimum Prijs (skip als lager)"/>
                                 </group>
-                                <group string="Prijs Filters">
-                                    <field name="skip_zero_price"/>
-                                    <field name="min_price"/>
-                                </group>
-                            </group>
-                            <group>
                                 <group string="Overige Filters">
                                     <field name="skip_discontinued"/>
                                     <field name="required_fields" placeholder="bijv: ean,price,stock"/>
                                 </group>
+                            </group>
+                            <group>
                                 <group>
                                     <div class="alert alert-info" role="alert">
                                         <strong>Info:</strong>

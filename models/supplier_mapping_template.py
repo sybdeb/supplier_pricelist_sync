@@ -54,22 +54,10 @@ class SupplierMappingTemplate(models.Model):
     )
     
     # Skip voorwaarden voor import
-    skip_out_of_stock = fields.Boolean(
-        string='Skip als Voorraad = 0',
-        default=False,
-        help="Als aangevinkt: skip producten met voorraad 0"
-    )
-    
     min_stock_qty = fields.Integer(
         string='Minimum Voorraad',
         default=0,
         help="Skip producten met voorraad lager dan dit aantal (0 = uitgeschakeld)"
-    )
-    
-    skip_zero_price = fields.Boolean(
-        string='Skip als Prijs = 0',
-        default=True,
-        help="Als aangevinkt: skip producten zonder prijs"
     )
     
     min_price = fields.Float(

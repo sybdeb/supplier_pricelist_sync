@@ -26,11 +26,17 @@ class SupplierImportQueue(models.Model):
     mapping = fields.Text(string='Column Mapping', required=True)
     
     # Filter settings
-    skip_out_of_stock = fields.Boolean(string='Skip Out of Stock', default=False)
     min_stock_qty = fields.Integer(string='Minimum Stock Qty', default=0)
-    skip_zero_price = fields.Boolean(string='Skip Zero Price', default=True)
     min_price = fields.Float(string='Minimum Price', default=0.0)
     skip_discontinued = fields.Boolean(string='Skip Discontinued', default=False)
+    brand_blacklist_ids = fields.Many2many(
+        'product.brand',
+        relation='queue_brand_blacklist_rel',
+        column1='queue_id',
+        column2='brand_id',
+        string='Merk Blacklist'
+    )
+    ean_whitelist = fields.Text(string='EAN Whitelist (1 per regel)')
     
     state = fields.Selection([
         ('queued', 'In Wachtrij'),
@@ -141,11 +147,11 @@ class SupplierImportQueue(models.Model):
                 'csv_filename': self.csv_filename,
                 'encoding': self.encoding,
                 'csv_separator': self.csv_separator,
-                'skip_out_of_stock': self.skip_out_of_stock,
                 'min_stock_qty': self.min_stock_qty,
-                'skip_zero_price': self.skip_zero_price,
                 'min_price': self.min_price,
                 'skip_discontinued': self.skip_discontinued,
+                'brand_blacklist_ids': [(6, 0, self.brand_blacklist_ids.ids)],
+                'ean_whitelist': self.ean_whitelist or '',
             })
             
             # Save the original history reference

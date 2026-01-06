@@ -19,7 +19,7 @@ Built for Odoo 19 Community Edition
     "website": "https://nerbys.nl",
     "license": "LGPL-3",
     "category": "Purchases",
-    "depends": ["base", "product", "purchase", "mail", "product_brand"],
+    "depends": ["base", "product", "purchase", "mail"],
     "data": [
         "security/ir.model.access.csv",
         "data/import_queue_cron.xml",
