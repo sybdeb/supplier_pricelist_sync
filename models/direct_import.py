@@ -512,6 +512,7 @@ class DirectImport(models.TransientModel):
                 'updated': updated_count,
                 'skipped': len(prescan_data['filtered']),
                 'errors': prescan_data['error_rows'],
+                'skip_reasons': prescan_data.get('skip_reasons', {}),
             }
             summary = self._create_import_summary(stats)
             
@@ -584,6 +585,14 @@ class DirectImport(models.TransientModel):
             'filtered': [],       # Filtered out rows
             'error_rows': [],     # Rows with errors
             'row_data': {},       # All row data indexed by product_code
+            'skip_reasons': {     # Track why rows were skipped
+                'out_of_stock': 0,
+                'below_min_stock': 0,
+                'zero_price': 0,
+                'below_min_price': 0,
+                'discontinued': 0,
+                'brand_blacklist': 0,
+            },
         }
         
         # Extract matching fields from mapping
@@ -631,8 +640,11 @@ class DirectImport(models.TransientModel):
                 row_data = self._parse_row_data(row, mapping)
                 
                 # Apply filters
-                if self._should_filter_row(row_data):
+                filter_reason = self._should_filter_row(row_data)
+                if filter_reason:
                     prescan_data['filtered'].append(row_num)
+                    if filter_reason in prescan_data['skip_reasons']:
+                        prescan_data['skip_reasons'][filter_reason] += 1
                     continue
                 
                 # Check if product exists
@@ -722,7 +734,8 @@ class DirectImport(models.TransientModel):
         return row_data
     
     def _should_filter_row(self, row_data):
-        """Check if row should be filtered out based on skip conditions"""
+        """Check if row should be filtered out based on skip conditions
+        Returns skip reason string if filtered, False otherwise"""
         supplierinfo_fields = row_data.get('supplierinfo_fields', {})
         product_fields = row_data.get('product_fields', {})
         
@@ -730,22 +743,22 @@ class DirectImport(models.TransientModel):
         if self.skip_out_of_stock or self.min_stock_qty > 0:
             stock_qty = supplierinfo_fields.get('supplier_stock', 0)
             if self.skip_out_of_stock and stock_qty == 0:
-                return True
+                return 'out_of_stock'
             if self.min_stock_qty > 0 and stock_qty < self.min_stock_qty:
-                return True
+                return 'below_min_stock'
         
         # Price filters
         if self.skip_zero_price or self.min_price > 0.0:
             price = supplierinfo_fields.get('price', 0.0)
             if self.skip_zero_price and price == 0.0:
-                return True
+                return 'zero_price'
             if self.min_price > 0.0 and price < self.min_price:
-                return True
+                return 'below_min_price'
         
         # Discontinued filter
         if self.skip_discontinued:
             if product_fields.get('discontinued') or product_fields.get('is_discontinued'):
-                return True
+                return 'discontinued'
         
         # Brand blacklist filter met EAN whitelist escape
         if self.brand_blacklist_ids:
@@ -772,7 +785,7 @@ class DirectImport(models.TransientModel):
                             return False
                     
                     # Merk staat op blacklist en EAN niet op whitelist - filteren
-                    return True
+                    return 'brand_blacklist'
         
         return False
     
@@ -1267,6 +1280,25 @@ class DirectImport(models.TransientModel):
             f"  🔄 Bijgewerkt: {stats['updated']}",
             f"  ⏭️  Overgeslagen: {stats['skipped']}",
         ]
+        
+        # Show skip reasons breakdown
+        if stats.get('skip_reasons'):
+            skip_reasons = stats['skip_reasons']
+            if any(skip_reasons.values()):
+                summary_lines.append("")
+                summary_lines.append("📋 Overgeslagen redenen:")
+                if skip_reasons.get('out_of_stock'):
+                    summary_lines.append(f"  • Geen voorraad: {skip_reasons['out_of_stock']}")
+                if skip_reasons.get('below_min_stock'):
+                    summary_lines.append(f"  • Onder minimum voorraad: {skip_reasons['below_min_stock']}")
+                if skip_reasons.get('zero_price'):
+                    summary_lines.append(f"  • Prijs = 0: {skip_reasons['zero_price']}")
+                if skip_reasons.get('below_min_price'):
+                    summary_lines.append(f"  • Onder minimum prijs: {skip_reasons['below_min_price']}")
+                if skip_reasons.get('discontinued'):
+                    summary_lines.append(f"  • Discontinued: {skip_reasons['discontinued']}")
+                if skip_reasons.get('brand_blacklist'):
+                    summary_lines.append(f"  • Merk blacklist: {skip_reasons['brand_blacklist']}")
         
         if stats['errors']:
             summary_lines.append("")
