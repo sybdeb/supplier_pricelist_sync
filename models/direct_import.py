@@ -466,6 +466,11 @@ class DirectImport(models.TransientModel):
                 'state': 'completed_with_errors' if prescan_data['error_rows'] else 'completed',
             })
             
+            # Create error records in database for missende producten
+            if prescan_data['error_rows']:
+                self._create_error_records(history.id, prescan_data['error_rows'])
+                _logger.info(f"Created {len(prescan_data['error_rows'])} error records in database")
+            
             # Update supplier's last sync date
             try:
                 self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
@@ -575,7 +580,25 @@ class DirectImport(models.TransientModel):
                 if product:
                     prescan_data['update_codes'][product_key] = row_data
                 else:
-                    prescan_data['create_codes'][product_key] = row_data
+                    # Product bestaat niet - dit is een ERROR (kan geen supplierinfo aanmaken)
+                    # Extract brand voor error reporting
+                    brand = ''
+                    for field_dict in [row_data.get('product_fields', {}), row_data.get('supplierinfo_fields', {})]:
+                        if 'brand' in field_dict:
+                            brand = field_dict.get('brand', '')
+                            break
+                        if 'product_brand' in field_dict:
+                            brand = field_dict.get('product_brand', '')
+                            break
+                    
+                    prescan_data['error_rows'].append({
+                        'row': row_num,
+                        'error': f'Product not found: {barcode or product_code}',
+                        'barcode': barcode,
+                        'product_code': product_code,
+                        'brand': brand,
+                        'product_name': row_data.get('product_fields', {}).get('name', ''),
+                    })
                 
                 prescan_data['row_data'][product_key] = row_data
                 
@@ -742,49 +765,27 @@ class DirectImport(models.TransientModel):
     def _bulk_create_supplierinfo(self, prescan_data, mapping):
         """
         Step 4: Bulk create new supplierinfo records
-        NOTE: Products must exist - log errors for missing products
+        NOTE: create_codes should be empty now - products not found are already in error_rows
+        This method is kept for edge cases where products are created during import
         """
         if not prescan_data['create_codes']:
+            _logger.info("No new supplier records to create (all products already processed)")
             return 0
         
         created_count = 0
         
+        # Edge case: someone created products during the import
+        _logger.warning(f"Unexpected: {len(prescan_data['create_codes'])} products in create_codes - should be in errors")
+        
         for product_key, row_data in prescan_data['create_codes'].items():
             try:
-                # Try to find product again (might have been created elsewhere)
-                barcode = row_data.get('_barcode')
-                product_code = row_data.get('_product_code')
+                product_id = row_data.get('_product_id')
+                if not product_id:
+                    # Should not happen - already filtered in prescan
+                    continue
                 
-                product = None
-                if barcode:
-                    product = self.env['product.product'].with_context(active_test=False).search([
-                        ('barcode', '=', barcode)
-                    ], limit=1)
-                
-                if not product and product_code:
-                    product = self.env['product.product'].with_context(active_test=False).search([
-                        ('default_code', '=', product_code)
-                    ], limit=1)
-                
-                if not product:
-                    # Log error - product doesn't exist (met volledige product info)
-                    error_info = {
-                        'row': row_data.get('_row_num'),
-                        'error': f'Product not found: {barcode or product_code}',
-                        'barcode': barcode,
-                        'product_code': product_code,
-                    }
-                    # Voeg brand/merk toe indien beschikbaar in row_data
-                    for field_dict in [row_data.get('product_fields', {}), row_data.get('supplierinfo_fields', {})]:
-                        if 'brand' in field_dict:
-                            error_info['brand'] = field_dict.get('brand', '')
-                            break
-                        if 'product_brand' in field_dict:
-                            error_info['brand'] = field_dict.get('product_brand', '')
-                            break
-                    
-                    prescan_data['error_rows'].append(error_info)
-                    _logger.warning(f"Cannot create supplierinfo - product not found: {barcode or product_code}")
+                product = self.env['product.product'].browse(product_id)
+                if not product.exists():
                     continue
                 
                 # Create supplierinfo
@@ -805,26 +806,41 @@ class DirectImport(models.TransientModel):
                 
             except Exception as e:
                 _logger.error(f"Error creating supplierinfo for {product_key}: {e}")
-                error_info = {
-                    'row': row_data.get('_row_num'),
-                    'error': str(e),
-                    'barcode': row_data.get('_barcode'),
-                    'product_code': row_data.get('_product_code'),
-                }
-                # Voeg brand toe indien beschikbaar
-                for field_dict in [row_data.get('product_fields', {}), row_data.get('supplierinfo_fields', {})]:
-                    if 'brand' in field_dict:
-                        error_info['brand'] = field_dict.get('brand', '')
-                        break
-                    if 'product_brand' in field_dict:
-                        error_info['brand'] = field_dict.get('product_brand', '')
-                        break
-                
-                prescan_data['error_rows'].append(error_info)
         
         self.env.cr.commit()
         _logger.info(f"Bulk created {created_count} supplier records")
         return created_count
+    
+    def _create_error_records(self, history_id, error_rows):
+        """
+        Create database records for all import errors
+        Allows viewing/exporting missende producten via UI
+        """
+        import json
+        
+        error_vals = []
+        for err in error_rows:
+            if isinstance(err, dict):
+                # Extract product name from error dict if available
+                product_name = err.get('product_name', '')
+                
+                # Create error record
+                error_vals.append({
+                    'history_id': history_id,
+                    'row_number': err.get('row', 0),
+                    'error_type': 'product_not_found',
+                    'barcode': err.get('barcode', '') or '',
+                    'product_code': err.get('product_code', '') or '',
+                    'product_name': product_name,
+                    'brand': err.get('brand', '') or '',
+                    'csv_data': json.dumps({'error': err.get('error', '')}),
+                    'error_message': err.get('error', 'Product not found'),
+                })
+        
+        # Bulk create error records
+        if error_vals:
+            self.env['supplier.import.error'].create(error_vals)
+            self.env.cr.commit()
     
     def _archive_products_without_suppliers(self):
         """
