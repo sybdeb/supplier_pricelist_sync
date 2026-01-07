@@ -110,7 +110,7 @@
                 <field name="barcode"/>
                 <field name="product_code"/>
                 <field name="product_name"/>
-                <field name="brand" string="Merk" optional="show"/>
+                <field name="brand" string="Merk"/>
                 <field name="error_message"/>
                 <field name="resolved"/>
             </list>
