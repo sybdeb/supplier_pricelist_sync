@@ -1,6 +1,6 @@
 {
     "name": "Supplier Pricelist Sync v3.0 (Bulk Import Optimization)",
-    "version": "19.0.3.1.3",
+    "version": "19.0.3.1.4",
     "summary": "Direct supplier pricelist import with automatic column mapping",
     "description": """
 Direct Supplier Pricelist Import System:
@@ -19,7 +19,7 @@ Built for Odoo 19 Community Edition
     "website": "https://nerbys.nl",
     "license": "LGPL-3",
     "category": "Purchases",
-    "depends": ["base", "product", "purchase", "mail"],
+    "depends": ["base", "product", "purchase", "mail", "dbw_odoo_base_v2"],
     "data": [
         "security/ir.model.access.csv",
         "data/import_queue_cron.xml",
@@ -31,8 +31,7 @@ Built for Odoo 19 Community Edition
         "views/supplier_mapping_template_views.xml",
         "views/product_supplierinfo_views.xml",
         "views/product_template_views.xml",
-        # "views/brand_mapping_views.xml",  # Tijdelijk uitgeschakeld
-        # "views/res_partner_views.xml",     # Tijdelijk uitgeschakeld - wordt via restart geladen
+        "views/brand_mapping_views.xml",
         "views/menus.xml",
     ],
     "installable": True,

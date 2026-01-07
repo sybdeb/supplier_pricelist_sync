@@ -1,24 +1,50 @@
 # -*- coding: utf-8 -*-
 """
-Import History - Track all imports for dashboard and reporting
+Extend supplier.import.history from dbw_odoo_base_v2 hub
+Add product_supplier_sync specific fields
 """
 
 from odoo import models, fields, api
 
 
-class ImportHistory(models.Model):
+class ImportHistoryExtend(models.Model):
     """
-    Logging van elke import voor dashboard statistieken en rapportage
-    """
-    _name = 'supplier.import.history'
-    _description = 'Supplier Import History'
-    _order = 'import_date desc'
+    Extend supplier.import.history (from hub) met extra velden voor product_supplier_sync
     
-    # Basis info
+    Hub heeft:
+    - supplier_id, import_date, import_type, state, import_file_name, import_source
+    - total_rows, success_count, warning_count, error_count, skipped_count
+    - duration, notes, error_message
+    
+    We voegen toe:
+    - schedule_id, user_id
+    - filename, file_size
+    - created_count, updated_count  
+    - retry_count, last_processed_row, processed_product_ids
+    - mapping_data, summary
+    - error_line_ids (One2many)
+    - name (computed), action methods
+    """
+    _inherit = 'supplier.import.history'
+    
+    # Computed name
     name = fields.Char('Import Name', compute='_compute_name', store=True)
-    import_date = fields.Datetime('Import Date', default=fields.Datetime.now, required=True)
-    supplier_id = fields.Many2one('res.partner', string='Leverancier', required=True)
-    user_id = fields.Many2one('res.users', string='Imported By', default=lambda self: self.env.user)
+    
+    # Extend state field with product_supplier_sync specific states
+    state = fields.Selection(
+        selection_add=[
+            ('queued', 'In Wachtrij'),
+            ('running', 'Running'),
+            ('completed', 'Completed'),
+            ('completed_with_errors', 'Completed with Errors'),
+        ],
+        ondelete={
+            'queued': 'set default',
+            'running': 'set default',
+            'completed': 'set default',
+            'completed_with_errors': 'set default',
+        }
+    )
     
     # Schedule link (voor automatische imports)
     schedule_id = fields.Many2one(
@@ -27,16 +53,16 @@ class ImportHistory(models.Model):
         help="Link naar scheduled import als dit een automatische import was"
     )
     
-    # File info
+    # User tracking
+    user_id = fields.Many2one('res.users', string='Imported By', default=lambda self: self.env.user)
+    
+    # Extra file info (hub heeft import_file_name, we voegen filename en file_size toe)
     filename = fields.Char('Bestandsnaam')
     file_size = fields.Integer('File Size (bytes)')
     
-    # Import statistieken
-    total_rows = fields.Integer('Totaal Rijen', default=0)
+    # Extra import statistieken (hub heeft total_rows, error_count, skipped_count, success_count, warning_count)
     created_count = fields.Integer('Aangemaakt', default=0)
     updated_count = fields.Integer('Bijgewerkt', default=0)
-    skipped_count = fields.Integer('Overgeslagen', default=0)
-    error_count = fields.Integer('Errors', default=0)
     
     # Recovery tracking voor crash recovery
     retry_count = fields.Integer('Aantal Retries', default=0, help='Aantal keren dat import opnieuw is gestart na timeout/server restart')
@@ -46,17 +72,8 @@ class ImportHistory(models.Model):
     # Mapping archiving (voor traceability en herhaling)
     mapping_data = fields.Text('Mapping Data (JSON)', help='Column mapping gebruikt voor deze import (voor audit trail en herhaling)')
     
-    # Status
-    state = fields.Selection([
-        ('queued', 'In Wachtrij'),
-        ('running', 'Running'),
-        ('completed', 'Completed'),
-        ('completed_with_errors', 'Completed with Errors'),
-        ('failed', 'Failed'),
-    ], string='Status', default='running')
-    
-    # Execution time
-    duration = fields.Float('Duration (seconds)', default=0.0)
+    # Summary text
+    summary = fields.Text('Import Summary')
     
     # Error details (One2many naar error log records)
     error_line_ids = fields.One2many(
@@ -64,9 +81,6 @@ class ImportHistory(models.Model):
         'history_id', 
         string='Import Errors'
     )
-    
-    # Summary text
-    summary = fields.Text('Import Summary')
     
     @api.depends('supplier_id', 'import_date')
     def _compute_name(self):
@@ -98,35 +112,3 @@ class ImportHistory(models.Model):
         return {'type': 'ir.actions.client', 'tag': 'reload'}
 
 
-class ImportError(models.Model):
-    """
-    Error log per regel voor detailed error tracking
-    """
-    _name = 'supplier.import.error'
-    _description = 'Supplier Import Error Log'
-    _order = 'row_number'
-    
-    # Link to history
-    history_id = fields.Many2one(
-        'supplier.import.history',
-        string='Import History',
-        required=True,
-        ondelete='cascade'
-    )
-    
-    # Error details
-    row_number = fields.Integer('Rij Nummer', required=True)
-    error_type = fields.Selection([
-        ('validation', 'Validatie Error'),
-        ('mapping', 'Mapping Error'),
-        ('data', 'Data Error'),
-        ('system', 'System Error'),
-        ('other', 'Overig')
-    ], string='Error Type', default='other')
-    
-    error_message = fields.Text('Foutmelding', required=True)
-    row_data = fields.Text('Rij Data (JSON)', help='De volledige rij data voor debugging')
-    
-    # Resolution tracking
-    is_resolved = fields.Boolean('Opgelost', default=False)
-    resolution_note = fields.Text('Oplossing')

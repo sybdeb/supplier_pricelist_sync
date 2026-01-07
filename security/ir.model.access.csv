@@ -4,8 +4,6 @@ access_supplier_direct_import,supplier.direct.import,model_supplier_direct_impor
 access_direct_import_mapping_line,supplier.direct.import.mapping.line,model_supplier_direct_import_mapping_line,,1,1,1,1
 access_supplier_mapping_template,supplier.mapping.template,model_supplier_mapping_template,,1,1,1,1
 access_supplier_mapping_line,supplier.mapping.line,model_supplier_mapping_line,,1,1,1,1
-access_supplier_import_history,supplier.import.history,model_supplier_import_history,,1,1,1,1
-access_supplier_import_error,supplier.import.error,model_supplier_import_error,,1,1,1,1
 access_supplier_import_queue,supplier.import.queue,model_supplier_import_queue,,1,1,1,1
 access_supplier_import_schedule,supplier.import.schedule,model_supplier_import_schedule,,1,1,1,1
 access_supplier_brand_mapping,supplier.brand.mapping,model_supplier_brand_mapping,,1,1,1,1

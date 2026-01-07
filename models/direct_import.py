@@ -447,6 +447,10 @@ class DirectImport(models.TransientModel):
         """
         import time
         import json
+        
+        # AUTO-SAVE mapping VOOR import start (zodat mapping altijd wordt opgeslagen)
+        self._auto_save_mapping_template(mapping)
+        
         start_time = time.time()
         
         history = self.env['supplier.import.history'].create({
@@ -528,9 +532,6 @@ class DirectImport(models.TransientModel):
                 self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
             except Exception as e:
                 _logger.warning(f"Could not update supplier last_sync_date: {e}")
-            
-            # AUTO-SAVE mapping as template for this supplier
-            self._auto_save_mapping_template(mapping)
             
             self.import_summary = summary
             
@@ -617,14 +618,45 @@ class DirectImport(models.TransientModel):
                 product_code = row.get(code_col, '').strip() if code_col else None
                 
                 if not barcode and not product_code:
-                    prescan_data['error_rows'].append({'row': row_num, 'error': 'No barcode or product code'})
+                    # Extract brand and product_name from CSV
+                    brand = ''
+                    product_name = ''
+                    
+                    # Check mapping first
+                    for csv_col, odoo_field in mapping.items():
+                        if odoo_field == 'product.name' and csv_col in row and row[csv_col]:
+                            product_name = row[csv_col].strip()
+                        if 'brand' in odoo_field.lower() and csv_col in row and row[csv_col]:
+                            brand = row[csv_col].strip()
+                    
+                    # Fallback to common names
+                    if not brand:
+                        for col_name in ['brand', 'merk', 'fabrikant', 'manufacturer', 'Brand', 'Merk', 'Fabrikant', 'Manufacturer']:
+                            if col_name in row and row[col_name]:
+                                brand = row[col_name].strip()
+                                break
+                    
+                    if not product_name:
+                        for col_name in ['name', 'product_name', 'description', 'omschrijving', 'productnaam', 'Name', 'Description', 'Omschrijving']:
+                            if col_name in row and row[col_name]:
+                                product_name = row[col_name].strip()
+                                break
+                    
+                    prescan_data['error_rows'].append({
+                        'row': row_num,
+                        'error': 'No barcode or product code',
+                        'barcode': '',
+                        'product_code': '',
+                        'brand': brand,
+                        'product_name': product_name,
+                    })
                     continue
                 
                 # Parse all fields for this row
                 row_data = self._parse_row_data(row, mapping)
                 
                 # Apply filters - now returns list of all applicable reasons
-                filter_reasons = self._should_filter_row(row_data)
+                filter_reasons = self._should_filter_row(row_data, row, mapping)
                 if filter_reasons:
                     prescan_data['filtered'].append(row_num)
                     # Count each reason separately (row can have multiple reasons)
@@ -646,15 +678,29 @@ class DirectImport(models.TransientModel):
                     prescan_data['update_codes'][product_key] = row_data
                 else:
                     # Product bestaat niet - dit is een ERROR (kan geen supplierinfo aanmaken)
-                    # Extract brand voor error reporting
+                    # Extract brand and product_name from original CSV row
                     brand = ''
-                    for field_dict in [row_data.get('product_fields', {}), row_data.get('supplierinfo_fields', {})]:
-                        if 'brand' in field_dict:
-                            brand = field_dict.get('brand', '')
-                            break
-                        if 'product_brand' in field_dict:
-                            brand = field_dict.get('product_brand', '')
-                            break
+                    product_name = ''
+                    
+                    # FIRST: Check mapping to find which CSV column maps to product.name and brand
+                    for csv_col, odoo_field in mapping.items():
+                        if odoo_field == 'product.name' and csv_col in row and row[csv_col]:
+                            product_name = row[csv_col].strip()
+                        if 'brand' in odoo_field.lower() and csv_col in row and row[csv_col]:
+                            brand = row[csv_col].strip()
+                    
+                    # FALLBACK: Try common column names if not found in mapping
+                    if not product_name:
+                        for col_name in ['name', 'product_name', 'description', 'omschrijving', 'productnaam', 'Name', 'Description', 'Omschrijving']:
+                            if col_name in row and row[col_name]:
+                                product_name = row[col_name].strip()
+                                break
+                    
+                    if not brand:
+                        for col_name in ['brand', 'merk', 'fabrikant', 'manufacturer', 'Brand', 'Merk', 'Fabrikant', 'Manufacturer']:
+                            if col_name in row and row[col_name]:
+                                brand = row[col_name].strip()
+                                break
                     
                     prescan_data['error_rows'].append({
                         'row': row_num,
@@ -662,13 +708,52 @@ class DirectImport(models.TransientModel):
                         'barcode': barcode,
                         'product_code': product_code,
                         'brand': brand,
-                        'product_name': row_data.get('product_fields', {}).get('name', ''),
+                        'product_name': product_name,
                     })
                 
                 prescan_data['row_data'][product_key] = row_data
                 
             except Exception as e:
-                prescan_data['error_rows'].append({'row': row_num, 'error': str(e)})
+                # Extract brand and product_name from CSV for error record
+                brand = ''
+                product_name = ''
+                barcode = ''
+                product_code = ''
+                
+                try:
+                    # Check mapping first
+                    for csv_col, odoo_field in mapping.items():
+                        if odoo_field == 'product.name' and csv_col in row and row[csv_col]:
+                            product_name = row[csv_col].strip()
+                        if 'brand' in odoo_field.lower() and csv_col in row and row[csv_col]:
+                            brand = row[csv_col].strip()
+                    
+                    # Fallback to common names
+                    if not brand:
+                        for col_name in ['brand', 'merk', 'fabrikant', 'manufacturer', 'Brand', 'Merk', 'Fabrikant', 'Manufacturer']:
+                            if col_name in row and row[col_name]:
+                                brand = row[col_name].strip()
+                                break
+                    
+                    if not product_name:
+                        for col_name in ['name', 'product_name', 'description', 'omschrijving', 'productnaam', 'Name', 'Description', 'Omschrijving']:
+                            if col_name in row and row[col_name]:
+                                product_name = row[col_name].strip()
+                                break
+                    
+                    barcode = row.get(barcode_col, '').strip() if barcode_col and barcode_col in row else ''
+                    product_code = row.get(code_col, '').strip() if code_col and code_col in row else ''
+                except:
+                    pass  # If extraction fails, just use empty strings
+                
+                prescan_data['error_rows'].append({
+                    'row': row_num,
+                    'error': str(e),
+                    'barcode': barcode,
+                    'product_code': product_code,
+                    'brand': brand,
+                    'product_name': product_name,
+                })
                 _logger.warning(f"Error pre-scanning row {row_num}: {e}")
         
         # Detect products with supplierinfo for this supplier NOT in CSV
@@ -719,7 +804,7 @@ class DirectImport(models.TransientModel):
         
         return row_data
     
-    def _should_filter_row(self, row_data):
+    def _should_filter_row(self, row_data, csv_row, mapping):
         """Check if row should be filtered out based on skip conditions
         Returns list of skip reasons (can be multiple), or empty list if not filtered"""
         supplierinfo_fields = row_data.get('supplierinfo_fields', {})
@@ -752,8 +837,19 @@ class DirectImport(models.TransientModel):
             _logger.info(f"DEBUG: blacklisted_brands list = {blacklisted_brands}")
             
             if blacklisted_brands:
-                # Check product brand
-                csv_brand_name = product_fields.get('brand', '').strip()
+                # Get brand from CSV - try common brand column names first
+                csv_brand_name = ''
+                for col_name in ['brand', 'merk', 'fabrikant', 'manufacturer', 'Brand', 'Merk']:
+                    if col_name in csv_row and csv_row[col_name]:
+                        csv_brand_name = csv_row[col_name].strip()
+                        break
+                
+                # If not found, check mapping to see which CSV column maps to brand
+                if not csv_brand_name:
+                    for csv_col, odoo_field in mapping.items():
+                        if 'brand' in odoo_field.lower() and csv_col in csv_row and csv_row[csv_col]:
+                            csv_brand_name = csv_row[csv_col].strip()
+                            break
                 if csv_brand_name:
                     # Probeer eerst een brand mapping te vinden
                     mapped_brand = self.env['supplier.brand.mapping'].get_mapped_brand(
@@ -956,6 +1052,7 @@ class DirectImport(models.TransientModel):
                 # Create error record
                 error_vals.append({
                     'history_id': history_id,
+                    'name': product_name or err.get('barcode', '') or err.get('product_code', '') or f"Row {err.get('row', 0)}",
                     'row_number': err.get('row', 0),
                     'error_type': 'product_not_found',
                     'barcode': err.get('barcode', '') or '',

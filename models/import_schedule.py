@@ -332,6 +332,7 @@ class SupplierImportSchedule(models.Model):
         readonly=True
     )
     
+    # Relatie naar import history (model zit in dbw_odoo_base_v2 hub)
     import_history_ids = fields.One2many(
         'supplier.import.history',
         'schedule_id',

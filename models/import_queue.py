@@ -138,6 +138,14 @@ class SupplierImportQueue(models.Model):
         
         _logger.info(f"Starting background import with NEW BULK architecture for supplier {self.supplier_id.name}")
         
+        # AUTO-SAVE mapping VOOR import start (zodat mapping altijd wordt opgeslagen)
+        DirectImport = self.env['supplier.direct.import']
+        temp_wizard_for_save = DirectImport.create({
+            'supplier_id': self.supplier_id.id,
+        })
+        temp_wizard_for_save._auto_save_mapping_template(mapping)
+        temp_wizard_for_save.unlink()
+        
         try:
             # Create temporary wizard instance to use the new bulk import methods
             DirectImport = self.env['supplier.direct.import']
@@ -236,9 +244,6 @@ class SupplierImportQueue(models.Model):
                 self.supplier_id.write({'last_sync_date': fields.Datetime.now()})
             except Exception as e:
                 _logger.warning(f"Could not update supplier last_sync_date: {e}")
-            
-            # AUTO-SAVE mapping template
-            temp_wizard._auto_save_mapping_template(mapping)
             
             # Clean up temp wizard
             temp_wizard.unlink()
