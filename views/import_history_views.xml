@@ -169,6 +169,7 @@
         <field name="name">Import Errors - Products Not Found</field>
         <field name="res_model">supplier.import.error</field>
         <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_import_error_tree"/>
         <field name="domain">[('error_type', '=', 'product_not_found')]</field>
         <field name="context">{'default_error_type': 'product_not_found'}</field>
     </record>
