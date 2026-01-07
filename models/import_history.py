@@ -4,20 +4,19 @@ Import History - Track all imports for dashboard and reporting
 """
 
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 
 
 class ImportHistory(models.Model):
     """
     Logging van elke import voor dashboard statistieken en rapportage
+    Extended from dbw_base_v2
     """
-    _name = 'supplier.import.history'
-    _description = 'Supplier Import History'
-    _order = 'import_date desc'
+    _inherit = 'supplier.import.history'
+    _description = 'Supplier Import History (Extended)'
     
-    # Basis info
-    name = fields.Char('Import Name', compute='_compute_name', store=True)
-    import_date = fields.Datetime('Import Date', default=fields.Datetime.now, required=True)
-    supplier_id = fields.Many2one('res.partner', string='Leverancier', required=True)
+    # Basis info - name, import_date, supplier_id inherited from base
+    # supplier_id has required=False in base for legacy data compatibility
     user_id = fields.Many2one('res.users', string='Imported By', default=lambda self: self.env.user)
     
     # Schedule link (voor automatische imports)
@@ -57,6 +56,16 @@ class ImportHistory(models.Model):
     
     # Execution time
     duration = fields.Float('Duration (seconds)', default=0.0)
+    
+    @api.constrains('supplier_id')
+    def _check_supplier_id(self):
+        """Ensure supplier is set for new records (allows NULL for legacy data)"""
+        for record in self:
+            if not record.supplier_id and record.create_date:
+                # Only enforce for new records
+                from datetime import datetime, timedelta
+                if record.create_date > datetime.now() - timedelta(days=1):
+                    raise ValidationError('Supplier is required for import history')
     
     # Error details (One2many naar error log records)
     error_line_ids = fields.One2many(

@@ -4,21 +4,24 @@ Import Error Log - Track products that failed to import
 Separate file to avoid circular dependency issues during module upgrade
 """
 
-from odoo import models, fields
+from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 
 
 class ImportError(models.Model):
     """
     Error log: producten die NIET gevonden/geïmporteerd konden worden
     Gebruikt voor product aanmaak workflow
+    Extended from dbw_base_v2
     """
-    _name = 'supplier.import.error'
-    _description = 'Import Error Log'
-    _order = 'id'
+    _inherit = 'supplier.import.error'
+    _description = 'Import Error Log (Extended)'
     
-    history_id = fields.Many2one('supplier.import.history', string='Import', required=True, ondelete='cascade')
+    # Name field inherited from base - required=False for legacy data compatibility
     
-    # Error details
+    # history_id inherited from base
+    
+    # Extended error details
     row_number = fields.Integer('Rij Nummer')
     error_type = fields.Selection([
         ('product_not_found', 'Product Not Found'),

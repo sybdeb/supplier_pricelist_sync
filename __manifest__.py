@@ -1,7 +1,7 @@
 {
     "name": "Supplier Pricelist Sync v3.1 (Hub Integration)",
-    "version": "19.0.3.1.2",
-    "summary": "Direct supplier pricelist import - wizard fix + error logging",
+    "version": "19.0.3.1.5",
+    "summary": "Direct supplier pricelist import with DBW Base v2 integration",
     "description": """
 Direct Supplier Pricelist Import System:
 - Central Dashboard - Import management per supplier
@@ -18,9 +18,9 @@ Built for Odoo 19 Community Edition
 """,
     "author": "Nerbys",
     "website": "https://nerbys.nl",
+    "depends": ["base", "product", "purchase", "mail", "dbw_base_v2"],
     "license": "LGPL-3",
     "category": "Purchases",
-    "depends": ["base", "product", "purchase", "mail"],  # "dbw_odoo_base_v2" - TODO: add when hub module is ready
     "data": [
         "security/ir.model.access.csv",
         "data/import_queue_cron.xml",
