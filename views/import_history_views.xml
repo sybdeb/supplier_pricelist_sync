@@ -103,6 +103,7 @@
     <record id="view_import_error_tree" model="ir.ui.view">
         <field name="name">supplier.import.error.tree</field>
         <field name="model">supplier.import.error</field>
+        <field name="priority">1</field>
         <field name="arch" type="xml">
             <list string="Import Errors - Products Not Found">
                 <field name="history_id"/>
