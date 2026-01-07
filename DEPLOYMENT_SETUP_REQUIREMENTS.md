@@ -441,12 +441,12 @@ while read oldrev newrev refname; do
     if [ "$oldrev" = "0000000000000000000000000000000000000000" ]; then
         # First push - deploy all modules
         log "First push detected - deploying all modules"
-        ALL_MODULES=$(find "$WORK_TREE" -maxdepth 2 -name "__manifest__.py" -o -name "__openerp__.py" | xargs -n1 dirname | xargs -n1 basename | sort -u)
+        ALL_MODULES=$(find "$WORK_TREE" -mindepth 2 -maxdepth 2 \( -name "__manifest__.py" -o -name "__openerp__.py" \) -exec dirname {} \; | xargs -n1 basename | sort -u)
         CHANGED_MODULES="$ALL_MODULES"
     else
         # Scan working tree and compare with live deployment
         log "Scanning for new or modified modules in working tree"
-        ALL_MODULES=$(find "$WORK_TREE" -maxdepth 2 -name "__manifest__.py" -o -name "__openerp__.py" | xargs -n1 dirname | xargs -n1 basename | sort -u)
+        ALL_MODULES=$(find "$WORK_TREE" -mindepth 2 -maxdepth 2 \( -name "__manifest__.py" -o -name "__openerp__.py" \) -exec dirname {} \; | xargs -n1 basename | sort -u)
         
         CHANGED_MODULES=""
         for module in $ALL_MODULES; do
