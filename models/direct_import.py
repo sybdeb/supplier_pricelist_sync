@@ -72,22 +72,10 @@ class DirectImport(models.TransientModel):
     )
     
     # Skip voorwaarden (kunnen uit template geladen worden)
-    skip_out_of_stock = fields.Boolean(
-        string='Skip als Voorraad = 0',
-        default=False,
-        help="Als aangevinkt: skip producten met voorraad 0"
-    )
-    
     min_stock_qty = fields.Integer(
         string='Minimum Voorraad',
         default=0,
         help="Skip producten met voorraad lager dan dit aantal (0 = uitgeschakeld)"
-    )
-    
-    skip_zero_price = fields.Boolean(
-        string='Skip als Prijs = 0',
-        default=True,
-        help="Als aangevinkt: skip producten zonder prijs"
     )
     
     min_price = fields.Float(
@@ -122,9 +110,7 @@ class DirectImport(models.TransientModel):
         """Load mapping configuration from template when selected"""
         if self.template_id:
             # Load skip conditions from template
-            self.skip_out_of_stock = self.template_id.skip_out_of_stock
             self.min_stock_qty = self.template_id.min_stock_qty
-            self.skip_zero_price = self.template_id.skip_zero_price
             self.min_price = self.template_id.min_price
             self.skip_discontinued = self.template_id.skip_discontinued
             
@@ -132,9 +118,7 @@ class DirectImport(models.TransientModel):
                         f"Skip conditions applied. Mapping will be applied after CSV parse.")
         else:
             # Reset to defaults when template is cleared
-            self.skip_out_of_stock = False
             self.min_stock_qty = 0
-            self.skip_zero_price = True
             self.min_price = 0.0
             self.skip_discontinued = False
     
@@ -347,7 +331,7 @@ class DirectImport(models.TransientModel):
             # Create history record in 'queued' state
             history = self.env['supplier.import.history'].create({
                 'supplier_id': self.supplier_id.id,
-                'filename': self.csv_filename,
+                'import_file_name': self.csv_filename,
                 'state': 'queued',
                 'total_rows': row_count,
             })
@@ -362,9 +346,7 @@ class DirectImport(models.TransientModel):
                 'csv_separator': self.csv_separator,
                 'mapping': str(mapping),  # Store as string (will eval() later)
                 # Filter settings
-                'skip_out_of_stock': self.skip_out_of_stock,
                 'min_stock_qty': self.min_stock_qty,
-                'skip_zero_price': self.skip_zero_price,
                 'min_price': self.min_price,
                 'skip_discontinued': self.skip_discontinued,
                 'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
@@ -395,7 +377,7 @@ class DirectImport(models.TransientModel):
         
         history = self.env['supplier.import.history'].create({
             'supplier_id': self.supplier_id.id,
-            'filename': self.csv_filename,
+            'import_file_name': self.csv_filename,
             'state': 'running',
             'mapping_data': json.dumps(mapping),  # Archive mapping for this import
         })
@@ -600,6 +582,9 @@ class DirectImport(models.TransientModel):
                 # Parse all fields for this row
                 row_data = self._parse_row_data(row, mapping)
                 
+                # Store original CSV row for error logging
+                row_data['_csv_row'] = row
+                
                 # Apply filters
                 if self._should_filter_row(row_data):
                     prescan_data['filtered'].append(row_num)
@@ -613,6 +598,34 @@ class DirectImport(models.TransientModel):
                 row_data['_product_code'] = product_code
                 row_data['_product_id'] = product.id if product else None
                 row_data['_row_num'] = row_num
+                
+                # Extract brand and product_name from CSV for error logging
+                if not product:
+                    brand = ''
+                    product_name = ''
+                    
+                    # FIRST: Check mapping to find which CSV column maps to product.name and brand
+                    for csv_col, odoo_field in mapping.items():
+                        if odoo_field == 'product.name' and csv_col in row and row[csv_col]:
+                            product_name = row[csv_col].strip()
+                        if 'brand' in odoo_field.lower() and csv_col in row and row[csv_col]:
+                            brand = row[csv_col].strip()
+                    
+                    # FALLBACK: Try common column names if not found in mapping
+                    if not product_name:
+                        for col_name in ['name', 'product_name', 'description', 'omschrijving', 'productnaam', 'Name', 'Description', 'Omschrijving']:
+                            if col_name in row and row[col_name]:
+                                product_name = row[col_name].strip()
+                                break
+                    
+                    if not brand:
+                        for col_name in ['brand', 'merk', 'fabrikant', 'manufacturer', 'Brand', 'Merk', 'Fabrikant', 'Manufacturer']:
+                            if col_name in row and row[col_name]:
+                                brand = row[col_name].strip()
+                                break
+                    
+                    row_data['_csv_brand'] = brand
+                    row_data['_csv_product_name'] = product_name
                 
                 if product:
                     prescan_data['update_codes'][product_key] = row_data
@@ -666,19 +679,15 @@ class DirectImport(models.TransientModel):
         product_fields = row_data.get('product_fields', {})
         
         # Stock filters
-        if self.skip_out_of_stock or self.min_stock_qty > 0:
+        if self.min_stock_qty > 0:
             stock_qty = supplierinfo_fields.get('supplier_stock', 0)
-            if self.skip_out_of_stock and stock_qty == 0:
-                return True
-            if self.min_stock_qty > 0 and stock_qty < self.min_stock_qty:
+            if stock_qty < self.min_stock_qty:
                 return True
         
         # Price filters
-        if self.skip_zero_price or self.min_price > 0.0:
+        if self.min_price > 0.0:
             price = supplierinfo_fields.get('price', 0.0)
-            if self.skip_zero_price and price == 0.0:
-                return True
-            if self.min_price > 0.0 and price < self.min_price:
+            if price < self.min_price:
                 return True
         
         # Discontinued filter
@@ -712,20 +721,50 @@ class DirectImport(models.TransientModel):
         ])
         
         if old_supplierinfo:
-            affected_products = old_supplierinfo.mapped('product_tmpl_id')
-            cleanup_stats['removed'] = len(old_supplierinfo)
-            _logger.info(f"Pre-cleanup: Removing {cleanup_stats['removed']} old supplier records")
-            old_supplierinfo.unlink()
-            self.env.cr.commit()
+            total_to_delete = len(old_supplierinfo)
+            _logger.info(f"Cleanup: Removing {total_to_delete} old supplierinfo records for this supplier")
+            
+            # Delete in batches of 1000 with progress logging
+            CLEANUP_BATCH_SIZE = 1000
+            deleted_count = 0
+            affected_products = set()
+            
+            for batch_start in range(0, total_to_delete, CLEANUP_BATCH_SIZE):
+                batch_end = min(batch_start + CLEANUP_BATCH_SIZE, total_to_delete)
+                batch = old_supplierinfo[batch_start:batch_end]
+                
+                # Track affected products before deletion
+                affected_products.update(batch.mapped('product_tmpl_id').ids)
+                
+                # Delete batch
+                batch.unlink()
+                deleted_count += len(batch)
+                
+                # Commit after each batch
+                self.env.cr.commit()
+                
+                # Log progress
+                progress_pct = (deleted_count / total_to_delete) * 100
+                _logger.info(f"Cleanup progress: {deleted_count}/{total_to_delete} ({progress_pct:.1f}%) deleted")
+            
+            cleanup_stats['removed'] = deleted_count
+            _logger.info(f"Cleanup complete: Deleted {deleted_count} old supplierinfo records")
             
             # Archive products without any suppliers
-            for product in affected_products:
+            affected_product_ids = list(affected_products)
+            _logger.info(f"Checking {len(affected_product_ids)} affected products for archiving...")
+            
+            for product_id in affected_product_ids:
+                product = self.env['product.template'].browse(product_id)
                 remaining = self.env['product.supplierinfo'].search_count([
-                    ('product_tmpl_id', '=', product.id)
+                    ('product_tmpl_id', '=', product_id)
                 ])
                 if remaining == 0 and product.active:
                     product.write({'active': False})
                     cleanup_stats['archived'] += 1
+            
+            if cleanup_stats['archived'] > 0:
+                _logger.info(f"Archived {cleanup_stats['archived']} products without suppliers")
             
             self.env.cr.commit()
         
@@ -803,6 +842,32 @@ class DirectImport(models.TransientModel):
         _logger.info(f"Bulk update complete: {updated_count} supplier records updated")
         return updated_count
     
+    def _extract_brand_from_row(self, row_data, mapping):
+        """Extract brand value from row data using mapping"""
+        # Try to find which CSV column maps to a brand field
+        csv_brand_col = None
+        for csv_col, odoo_field in mapping.items():
+            # Check for brand-related fields
+            if any(term in odoo_field.lower() for term in ['brand', 'merk', 'x_studio_merk']):
+                csv_brand_col = csv_col
+                break
+        
+        # Get brand from original CSV data stored in row_data
+        if csv_brand_col and '_csv_row' in row_data:
+            brand_value = row_data['_csv_row'].get(csv_brand_col, '')
+            if brand_value:
+                return str(brand_value).strip()
+        
+        # Fallback: try various possible field names in product_fields
+        product_fields = row_data.get('product_fields', {})
+        brand = (
+            product_fields.get('brand', '') or 
+            product_fields.get('x_studio_merk', '') or 
+            product_fields.get('product_brand_id', '') or
+            row_data.get('_csv_brand', '')
+        )
+        return str(brand).strip() if brand else ''
+    
     def _bulk_create_supplierinfo(self, prescan_data, mapping):
         """
         Step 4: Bulk create new supplierinfo records (in batches of 250)
@@ -844,16 +909,22 @@ class DirectImport(models.TransientModel):
                     
                     if not product:
                         # Log error with full details
+                        # Extract brand from mapping + CSV row
+                        brand_str = self._extract_brand_from_row(row_data, mapping)
+                        
+                        # Get product name
+                        product_fields = row_data.get('product_fields', {})
+                        product_name = product_fields.get('name', '') or row_data.get('_csv_product_name', '')
+                        
                         prescan_data['error_rows'].append({
                             'row': row_data.get('_row_num'),
                             'barcode': barcode or '',
                             'product_code': product_code or '',
-                            'product_name': row_data.get('product_fields', {}).get('name', ''),
-                            'brand': str(row_data.get('product_fields', {}).get('x_studio_merk', '')),
-                            'row_data': row_data,
+                            'product_name': product_name,
+                            'brand': brand_str,
                             'error': f'Product not found: {barcode or product_code}'
                         })
-                        _logger.warning(f"Cannot create supplierinfo - product not found: {barcode or product_code}")
+                        _logger.warning(f"Cannot create supplierinfo - product not found: {barcode or product_code}, brand: {brand_str}")
                         continue
                     
                     # Create supplierinfo
@@ -886,6 +957,38 @@ class DirectImport(models.TransientModel):
         self.env.cr.commit()
         _logger.info(f"Bulk created {created_count} supplier records")
         return created_count
+    
+    def _create_error_records(self, history_id, error_rows):
+        """
+        Create database records for all import errors
+        Allows viewing/exporting missende producten via UI
+        """
+        import json
+
+        error_vals = []
+        for err in error_rows:
+            if isinstance(err, dict):
+                # Extract product name from error dict if available
+                product_name = err.get('product_name', '')
+
+                # Create error record
+                error_vals.append({
+                    'history_id': history_id,
+                    'name': product_name or err.get('barcode', '') or err.get('product_code', '') or f"Row {err.get('row', 0)}",
+                    'row_number': err.get('row', 0),
+                    'error_type': 'product_not_found',
+                    'barcode': err.get('barcode', '') or '',
+                    'product_code': err.get('product_code', '') or '',
+                    'product_name': product_name,
+                    'brand': err.get('brand', '') or '',
+                    'csv_data': json.dumps({'error': err.get('error', '')}),
+                    'error_message': err.get('error', 'Product not found'),
+                })
+
+        # Bulk create error records
+        if error_vals:
+            self.env['supplier.import.error'].create(error_vals)
+            self.env.cr.commit()
     
     def _archive_products_without_suppliers(self):
         """
@@ -929,9 +1032,7 @@ class DirectImport(models.TransientModel):
         # Default skip conditions if not provided
         if skip_conditions is None:
             skip_conditions = {
-                'skip_out_of_stock': False,
                 'min_stock_qty': 0,
-                'skip_zero_price': True,
                 'min_price': 0.0,
                 'skip_discontinued': False,
             }
@@ -985,25 +1086,17 @@ class DirectImport(models.TransientModel):
         
         # APPLY SKIP CONDITIONS
         # Check stock quantity skip conditions
-        if skip_conditions.get('skip_out_of_stock') or skip_conditions.get('min_stock_qty', 0) > 0:
+        if skip_conditions.get('min_stock_qty', 0) > 0:
             stock_qty = supplierinfo_fields.get('supplier_stock', 0)
-            if skip_conditions.get('skip_out_of_stock') and stock_qty == 0:
-                stats['skipped'] += 1
-                _logger.info(f"Row {row_num}: Skipped - out of stock (qty={stock_qty})")
-                return
-            if skip_conditions.get('min_stock_qty', 0) > 0 and stock_qty < skip_conditions['min_stock_qty']:
+            if stock_qty < skip_conditions['min_stock_qty']:
                 stats['skipped'] += 1
                 _logger.info(f"Row {row_num}: Skipped - below minimum stock (qty={stock_qty}, min={skip_conditions['min_stock_qty']})")
                 return
         
         # Check price skip conditions
-        if skip_conditions.get('skip_zero_price') or skip_conditions.get('min_price', 0.0) > 0.0:
+        if skip_conditions.get('min_price', 0.0) > 0.0:
             price = supplierinfo_fields.get('price', 0.0)
-            if skip_conditions.get('skip_zero_price') and price == 0.0:
-                stats['skipped'] += 1
-                _logger.info(f"Row {row_num}: Skipped - zero price")
-                return
-            if skip_conditions.get('min_price', 0.0) > 0.0 and price < skip_conditions['min_price']:
+            if price < skip_conditions['min_price']:
                 stats['skipped'] += 1
                 _logger.info(f"Row {row_num}: Skipped - below minimum price (price={price}, min={skip_conditions['min_price']})")
                 return

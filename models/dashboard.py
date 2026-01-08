@@ -152,7 +152,7 @@ class SupplierPricelistImportHistory(models.Model):
         """Helper method to log imports"""
         return self.create({
             'supplier_id': supplier_id,
-            'filename': filename,
+            'import_file_name': filename,
             'records_processed': stats.get('processed', 0),
             'records_created': stats.get('created', 0), 
             'records_updated': stats.get('updated', 0),

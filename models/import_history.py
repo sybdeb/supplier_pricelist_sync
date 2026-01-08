@@ -10,13 +10,15 @@ from odoo.exceptions import ValidationError
 class ImportHistory(models.Model):
     """
     Logging van elke import voor dashboard statistieken en rapportage
-    Extended from dbw_base_v2
     """
-    _inherit = 'supplier.import.history'
-    _description = 'Supplier Import History (Extended)'
+    _name = 'supplier.import.history'
+    _description = 'Supplier Import History'
+    _order = 'import_date desc'
     
-    # Basis info - name, import_date, supplier_id inherited from base
-    # supplier_id has required=False in base for legacy data compatibility
+    # Basis info
+    name = fields.Char('Import Name', compute='_compute_name', store=True)
+    import_date = fields.Datetime('Import Date', default=fields.Datetime.now, required=True)
+    supplier_id = fields.Many2one('res.partner', string='Leverancier', required=False)
     user_id = fields.Many2one('res.users', string='Imported By', default=lambda self: self.env.user)
     
     # Schedule link (voor automatische imports)

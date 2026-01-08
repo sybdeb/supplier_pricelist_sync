@@ -36,6 +36,27 @@
                         </group>
                     </group>
                     
+                    <!-- Import Filtering Section -->
+                    <div invisible="not template_id and not mapping_lines">
+                        <h3>🔧 IMPORT FILTERING</h3>
+                        <group>
+                            <group string="VOORRAAD &amp; PRIJS FILTERS">
+                                <field name="min_stock_qty" string="Minimum Voorraad (skip als lager)"/>
+                                <field name="min_price" string="Minimum Prijs (skip als lager)"/>
+                            </group>
+                            <group string="OVERIGE FILTERS">
+                                <field name="skip_discontinued" string="Skip Discontinued"/>
+                            </group>
+                        </group>
+                        
+                        <div class="alert alert-info">
+                            <strong>Info:</strong>
+                            <ul class="mb-0">
+                                <li>Rijen die niet voldoen aan deze voorwaarden worden overgeslagen</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
                     <!-- Parse Button -->
                     <div class="alert alert-info mt-3" invisible="mapping_lines">
                         <p class="mb-2">

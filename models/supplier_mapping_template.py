@@ -47,23 +47,17 @@ class SupplierMappingTemplate(models.Model):
         default=True
     )
     
-    # Skip voorwaarden voor import
-    skip_out_of_stock = fields.Boolean(
-        string='Skip als Voorraad = 0',
+    is_auto_saved = fields.Boolean(
+        string='Auto-saved',
         default=False,
-        help="Als aangevinkt: skip producten met voorraad 0"
+        help="Automatisch opgeslagen mapping (niet handmatig aangemaakt)"
     )
     
+    # Skip voorwaarden voor import
     min_stock_qty = fields.Integer(
         string='Minimum Voorraad',
         default=0,
         help="Skip producten met voorraad lager dan dit aantal (0 = uitgeschakeld)"
-    )
-    
-    skip_zero_price = fields.Boolean(
-        string='Skip als Prijs = 0',
-        default=True,
-        help="Als aangevinkt: skip producten zonder prijs"
     )
     
     min_price = fields.Float(
@@ -76,6 +70,23 @@ class SupplierMappingTemplate(models.Model):
         string='Skip Discontinued',
         default=False,
         help="Als aangevinkt: skip producten gemarkeerd als discontinued in CSV"
+    )
+    
+    # Merk filtering - Many2many naar product.brand
+    brand_blacklist_ids = fields.Many2many(
+        'product.brand',
+        'mapping_template_brand_blacklist_rel',
+        'template_id',
+        'brand_id',
+        string='Merk Blacklist',
+        help="Merken die geskipt moeten worden.\n"
+             "Producten van deze merken worden niet geïmporteerd, tenzij hun EAN op de whitelist staat."
+    )
+    
+    ean_whitelist = fields.Text(
+        string='EAN Whitelist (voor geblackliste merken)',
+        help="EAN codes die WEL geïmporteerd moeten worden, zelfs als het merk op de blacklist staat.\n"
+             "Eén EAN per regel of komma-gescheiden. Gebruik dit voor uitzonderingen op de merk blacklist."
     )
     
     required_fields = fields.Char(

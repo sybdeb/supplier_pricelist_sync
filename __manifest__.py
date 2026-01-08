@@ -1,6 +1,6 @@
 {
     "name": "Supplier Pricelist Sync v3.1 (Hub Integration)",
-    "version": "19.0.3.1.5",
+    "version": "19.0.3.1.8",
     "summary": "Direct supplier pricelist import with DBW Base v2 integration",
     "description": """
 Direct Supplier Pricelist Import System:
@@ -18,7 +18,7 @@ Built for Odoo 19 Community Edition
 """,
     "author": "Nerbys",
     "website": "https://nerbys.nl",
-    "depends": ["base", "product", "purchase", "mail", "dbw_base_v2"],
+    "depends": ["base", "product", "purchase", "mail", "dbw_odoo_base_v2"],
     "license": "LGPL-3",
     "category": "Purchases",
     "data": [

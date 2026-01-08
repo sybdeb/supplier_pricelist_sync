@@ -12,14 +12,16 @@ class ImportError(models.Model):
     """
     Error log: producten die NIET gevonden/geïmporteerd konden worden
     Gebruikt voor product aanmaak workflow
-    Extended from dbw_base_v2
     """
-    _inherit = 'supplier.import.error'
-    _description = 'Import Error Log (Extended)'
+    _name = 'supplier.import.error'
+    _description = 'Import Error Log'
+    _order = 'id'
     
-    # Name field inherited from base - required=False for legacy data compatibility
-    
-    # history_id inherited from base
+    # Core fields
+    name = fields.Char('Error Description', compute='_compute_name', store=True, required=False)
+    history_id = fields.Many2one('supplier.import.history', string='Import', required=True, ondelete='cascade')
+    product_id = fields.Many2one('product.product', string='Product')
+    error_message = fields.Text('Error Message')
     
     # Extended error details
     row_number = fields.Integer('Rij Nummer')
@@ -38,9 +40,6 @@ class ImportError(models.Model):
     
     # CSV data (voor product aanmaak)
     csv_data = fields.Text('CSV Row Data (JSON)')
-    
-    # Error message
-    error_message = fields.Text('Error Message')
     
     # Status
     resolved = fields.Boolean('Resolved', default=False)

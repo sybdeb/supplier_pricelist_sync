@@ -124,7 +124,7 @@
                                 <list limit="10" create="false" edit="false">
                                     <field name="import_date" string="Date"/>
                                     <field name="supplier_id" string="Supplier"/>
-                                    <field name="filename" string="File"/>
+                                    <field name="import_file_name" string="File"/>
                                     <field name="total_rows" string="Records"/>
                                     <field name="state" widget="badge" 
                                            decoration-success="state == 'completed'"

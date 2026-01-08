@@ -29,9 +29,7 @@ class SupplierImportQueue(models.Model):
     mapping = fields.Text(string='Column Mapping', required=True)
     
     # Filter settings
-    skip_out_of_stock = fields.Boolean(string='Skip Out of Stock', default=False)
     min_stock_qty = fields.Integer(string='Minimum Stock Qty', default=0)
-    skip_zero_price = fields.Boolean(string='Skip Zero Price', default=True)
     min_price = fields.Float(string='Minimum Price', default=0.0)
     skip_discontinued = fields.Boolean(string='Skip Discontinued', default=False)
     cleanup_old_supplierinfo = fields.Boolean(string='Cleanup Old Supplierinfo', default=False)
@@ -145,9 +143,7 @@ class SupplierImportQueue(models.Model):
                 'csv_filename': self.csv_filename,
                 'encoding': self.encoding,
                 'csv_separator': self.csv_separator,
-                'skip_out_of_stock': self.skip_out_of_stock,
                 'min_stock_qty': self.min_stock_qty,
-                'skip_zero_price': self.skip_zero_price,
                 'min_price': self.min_price,
                 'skip_discontinued': self.skip_discontinued,
                 'cleanup_old_supplierinfo': self.cleanup_old_supplierinfo,
@@ -223,6 +219,11 @@ class SupplierImportQueue(models.Model):
                 'state': 'completed_with_errors' if prescan_data['error_rows'] else 'completed',
                 'mapping_data': json.dumps(mapping),  # Archive mapping
             })
+            
+            # Create error records in database for missende producten
+            if prescan_data['error_rows']:
+                temp_wizard._create_error_records(original_history.id, prescan_data['error_rows'])
+                _logger.info(f"Created {len(prescan_data['error_rows'])} error records in database")
             
             # Update supplier's last sync date
             try:

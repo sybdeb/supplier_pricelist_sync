@@ -51,11 +51,9 @@
                         <page string="Skip Voorwaarden" name="skip_conditions">
                             <group>
                                 <group string="Voorraad Filters">
-                                    <field name="skip_out_of_stock"/>
                                     <field name="min_stock_qty"/>
                                 </group>
                                 <group string="Prijs Filters">
-                                    <field name="skip_zero_price"/>
                                     <field name="min_price"/>
                                 </group>
                             </group>
