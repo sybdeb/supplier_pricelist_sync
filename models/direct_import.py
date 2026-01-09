@@ -78,6 +78,13 @@ class DirectImport(models.TransientModel):
         help="Skip producten met voorraad lager dan dit aantal (0 = uitgeschakeld)"
     )
     
+    # PRO detection (v19.0.3.5.0)
+    is_pro_available = fields.Boolean(
+        compute='_compute_is_pro_available',
+        string='PRO Beschikbaar',
+        help='PRO module geïnstalleerd voor onbeperkte imports'
+    )
+    
     min_price = fields.Float(
         string='Minimum Prijs',
         default=0.0,
@@ -287,6 +294,23 @@ class DirectImport(models.TransientModel):
         return False
     
     # =========================================================================
+    # PRO MODULE DETECTION (v19.0.3.5.0)
+    # =========================================================================
+    
+    @api.depends()
+    def _compute_is_pro_available(self):
+        """
+        Check if PRO module is installed
+        PRO unlocks: unlimited imports/day, unlimited rows, scheduled imports
+        """
+        pro_module = self.env['ir.module.module'].sudo().search([
+            ('name', '=', 'product_supplier_sync_pro'),
+            ('state', '=', 'installed')
+        ], limit=1)
+        for record in self:
+            record.is_pro_available = bool(pro_module)
+    
+    # =========================================================================
     # IMPORT EXECUTION
     # =========================================================================
     
@@ -295,8 +319,40 @@ class DirectImport(models.TransientModel):
         Voer de import uit met de geconfigureerde mapping
         Voor grote imports (>1000 rijen): queue as background job via cron
         Voor kleine imports: direct processing
+        
+        FREE limitations (v19.0.3.5.0):
+        - Max 2 imports per dag per gebruiker
+        - Max 2000 rijen per import
+        PRO module verwijdert deze limitaties
         """
         self.ensure_one()
+        
+        # FREE LIMITERS (v19.0.3.5.0)
+        if not self.is_pro_available:
+            # Limiet 1: Max 2 imports per dag per gebruiker
+            today = fields.Date.today()
+            today_imports = self.env['supplier.import.history'].search([
+                ('import_date', '>=', today),
+                ('create_uid', '=', self.env.uid)
+            ])
+            if len(today_imports) >= 2:
+                raise UserError(
+                    "FREE versie limiet bereikt!\n\n"
+                    "Maximaal 2 imports per dag.\n"
+                    f"U heeft vandaag al {len(today_imports)} imports uitgevoerd.\n\n"
+                    "Upgrade naar PRO voor onbeperkte imports.\n\n"
+                    "Contact: info@de-bruijn.email"
+                )
+            
+            # Limiet 2: Max 2000 rijen per import
+            if self.total_rows > 2000:
+                raise UserError(
+                    f"FREE versie limiet bereikt!\n\n"
+                    f"Maximaal 2000 regels per import.\n"
+                    f"Uw bestand heeft {self.total_rows} regels.\n\n"
+                    "Upgrade naar PRO voor onbeperkte import grootte.\n\n"
+                    "Contact: info@de-bruijn.email"
+                )
         
         if not self.csv_file:
             raise UserError("Geen CSV bestand gevonden")
