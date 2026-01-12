@@ -45,6 +45,7 @@ Built for Odoo 19 Community Edition
         "views/product_supplierinfo_views.xml",
         "views/product_template_views.xml",
         "views/menus.xml",
+        "views/brand_mapping_views.xml",
     ],
     "installable": True,
     "application": True,
