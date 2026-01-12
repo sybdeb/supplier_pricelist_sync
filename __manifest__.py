@@ -1,27 +1,28 @@
 {
-    "name": "Supplier Pricelist Sync v3.5 (Hub Integration - FREE)",
-    "version": "19.0.3.5.0",
-    "summary": "Direct supplier pricelist import with DBW Base v2 integration (FREE: 2/day, 2000 rows)",
+    "name": "Supplier Pricelist Sync v3.6 (Freemium - Scheduled Imports)",
+    "version": "19.0.3.6.0",
+    "summary": "Supplier import with manual (FREE) and scheduled (PRO) imports",
     "description": """
-Direct Supplier Pricelist Import System - FREE Version:
+Direct Supplier Pricelist Import System - Freemium Model:
 - Central Dashboard - Import management per supplier
 - Direct Import - Inline CSV processing without data loss
 - Automatic Column Mapping - Smart detection based on supplier patterns
 - Template System - Save and reuse mappings per supplier
-- Bulk Processing - Handle large CSV files efficiently (v3.0: batch commits)
+- Bulk Processing - Handle large CSV files efficiently
+- Brand Mapping - Map CSV brand names to Odoo brands
 - Update Logic - Refresh existing records, no duplicates
-- Batch Processing - 250-row commits to prevent worker timeouts (v3.0.1)
 
-FREE Version Limitations (v19.0.3.5.0):
+FREE Version (Manual Imports):
 - Maximum 2 imports per day per user
 - Maximum 2000 rows per import
-- Manual imports only
+- Manual CSV upload only
 
-PRO Version Available:
+PRO Version (Scheduled Automation):
 - Unlimited imports per day
 - Unlimited file size
-- Scheduled Imports - FTP/SFTP/API/HTTP automation
-- Cron Integration - Automatic periodic imports
+- Scheduled Imports - HTTP/FTP/SFTP/API/Database
+- Automatic periodic imports via cron
+- All PRO features visible in UI, unlocked by installing supplier_sync_pro
 
 Contact: info@de-bruijn.email for PRO upgrade
 
@@ -31,6 +32,9 @@ Built for Odoo 19 Community Edition
     "website": "https://nerbys.nl",
     "support": "info@de-bruijn.email",
     "depends": ["base", "product", "purchase", "mail", "dbw_odoo_base_v2"],
+    "external_dependencies": {
+        "python": ["paramiko", "requests"]  # Required for PRO scheduled imports
+    },
     "license": "LGPL-3",
     "category": "Purchases",
     "data": [
