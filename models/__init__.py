@@ -1,5 +1,4 @@
 from . import import_error_extend
-from . import import_history_extend
 from . import brand_mapping
 from . import dashboard
 from . import direct_import
