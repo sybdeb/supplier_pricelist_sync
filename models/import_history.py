@@ -9,10 +9,11 @@ from odoo.exceptions import ValidationError
 
 class ImportHistory(models.Model):
     """
-    Logging van elke import voor dashboard statistieken en rapportage
+    EXTEND supplier.import.history from dbw_odoo_base_v2 HUB
+    Add product_supplier_sync specific fields
     """
-    _name = 'supplier.import.history'
-    _description = 'Supplier Import History'
+    _inherit = 'supplier.import.history'
+    _description = 'Supplier Import History (Extended)'
     _order = 'import_date desc'
     
     # Basis info
@@ -31,6 +32,13 @@ class ImportHistory(models.Model):
     # File info
     filename = fields.Char('Bestandsnaam')
     file_size = fields.Integer('File Size (bytes)')
+    
+    # Import type (for dbw_odoo_base_v2 compatibility)
+    import_type = fields.Selection([
+        ('manual', 'Manual'),
+        ('scheduled', 'Scheduled'),
+        ('api', 'API'),
+    ], string='Import Type', default='manual')
     
     # Import statistieken
     total_rows = fields.Integer('Totaal Rijen', default=0)
@@ -111,11 +119,11 @@ class ImportHistory(models.Model):
 
 class ImportError(models.Model):
     """
-    Error log: producten die NIET gevonden/geïmporteerd konden worden
-    Gebruikt voor product aanmaak workflow
+    EXTEND supplier.import.error from dbw_odoo_base_v2 HUB
+    Add product_supplier_sync specific fields
     """
-    _name = 'supplier.import.error'
-    _description = 'Import Error Log'
+    _inherit = 'supplier.import.error'
+    _description = 'Import Error Log (Extended)'
     _order = 'id'
     
     history_id = fields.Many2one('supplier.import.history', string='Import', required=True, ondelete='cascade')

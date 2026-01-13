@@ -31,7 +31,7 @@ Built for Odoo 19 Community Edition
     "author": "De Bruijn Webworks in samenwerking met Nerbys E-commerce",
     "website": "https://nerbys.nl",
     "support": "info@de-bruijn.email",
-    "depends": ["base", "product", "purchase", "mail"],
+    "depends": ["base", "product", "purchase", "mail", "dbw_odoo_base_v2"],
     "external_dependencies": {
         "python": ["paramiko", "requests"]  # Required for PRO scheduled imports
     },
