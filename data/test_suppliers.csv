@@ -1,6 +1,0 @@
-name,ref,supplier_rank,comment
-Test Supplier A (SFTP),SUPPLIER_A,1,SFTP: 46.224.16.150:2222
-Test Supplier B (HTTP CSV),SUPPLIER_B,1,CSV: http://46.224.16.150:8000/stock_latest.csv
-Test Supplier C (REST API),SUPPLIER_C,1,JSON: http://46.224.16.150:3000/products
-Test Supplier D (PostgreSQL),SUPPLIER_D,1,DB: 46.224.16.150:5432/supplierd
-Test Supplier E (XML),SUPPLIER_E,1,XML: http://46.224.16.150:8080/products_latest.xml
