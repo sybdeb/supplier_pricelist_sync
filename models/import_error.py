@@ -1,30 +1,25 @@
 # -*- coding: utf-8 -*-
 """
-Import Error Log - Track products that failed to import
-Separate file to avoid circular dependency issues during module upgrade
+Extend supplier.import.error from dbw_odoo_base_v2 hub
+Add product_supplier_sync specific fields for product matching errors
 """
 
-from odoo import models, fields, api
-from odoo.exceptions import ValidationError
+from odoo import models, fields
 
 
 class ImportError(models.Model):
     """
-    Error log: producten die NIET gevonden/geïmporteerd konden worden
-    Gebruikt voor product aanmaak workflow
+    Extend supplier.import.error met product-specific velden
     """
-    _name = 'supplier.import.error'
-    _description = 'Import Error Log'
-    _order = 'id'
+    _inherit = 'supplier.import.error'
     
-    # Core fields
-    name = fields.Char('Error Description', compute='_compute_name', store=True, required=False)
-    history_id = fields.Many2one('supplier.import.history', string='Import', required=True, ondelete='cascade')
-    product_id = fields.Many2one('product.product', string='Product')
-    error_message = fields.Text('Error Message')
+    # Product matching fields
+    barcode = fields.Char('Barcode', help='Barcode uit CSV voor product matching')
+    product_code = fields.Char('Product Code', help='Supplier product code uit CSV')
+    product_name = fields.Char('Product Name', help='Product naam uit CSV')
+    brand = fields.Char('Brand', help='Merk uit CSV')
     
-    # Extended error details
-    row_number = fields.Integer('Rij Nummer')
+    # Error type (base heeft dit veld niet, dus we maken het hier)
     error_type = fields.Selection([
         ('product_not_found', 'Product Not Found'),
         ('missing_price', 'Missing Price'),
@@ -32,26 +27,19 @@ class ImportError(models.Model):
         ('system_error', 'System Error'),
     ], string='Error Type', required=True)
     
-    # Product identification (wat we probeerden te vinden)
-    barcode = fields.Char('EAN/Barcode')
-    product_code = fields.Char('SKU/Product Code')
-    product_name = fields.Char('Product Naam')
-    brand = fields.Char('Merk/Brand')
-    
-    # CSV data (voor product aanmaak)
-    csv_data = fields.Text('CSV Row Data (JSON)')
-    
-    # Status
+    # Resolution tracking
     resolved = fields.Boolean('Resolved', default=False)
     resolved_date = fields.Datetime('Resolved Date')
     resolved_by = fields.Many2one('res.users', string='Resolved By')
     notes = fields.Text('Resolution Notes')
+    
+    # CSV data voor manual product creation
+    csv_data = fields.Text('CSV Data', help='Volledige CSV rij data voor handmatige product aanmaak')
     
     def action_mark_resolved(self):
         """Mark error as resolved"""
         self.write({
             'resolved': True,
             'resolved_date': fields.Datetime.now(),
-            'resolved_by': self.env.user.id,
+            'resolved_by': self.env.user.id
         })
-        return True
