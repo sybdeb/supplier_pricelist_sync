@@ -744,3 +744,53 @@ class SmartImport(models.TransientModel):
                 },
             },
         }
+
+
+class SmartImportMappingLine(models.TransientModel):
+    """
+    Smart Import Mapping Line - Maps CSV columns to Odoo fields
+    TransientModel used to store mapping configuration
+    """
+    _name = 'supplier.smart.import.mapping.line'
+    _description = 'Smart Import Column Mapping Line'
+    _order = 'sequence, id'
+    
+    smart_import_id = fields.Many2one('supplier.smart.import', required=True, ondelete='cascade')
+    sequence = fields.Integer(default=10)
+    
+    csv_column = fields.Char('CSV Column', required=True)
+    odoo_field = fields.Selection(
+        selection='_get_odoo_field_selection',
+        string='Odoo Field'
+    )
+    sample_data = fields.Char('Sample Data')
+    
+    @api.model
+    def _get_odoo_field_selection(self):
+        """
+        Dynamic selection of available Odoo fields from product.supplierinfo
+        Similar to native Odoo import functionality
+        """
+        fields_list = []
+        
+        try:
+            supplierinfo_model = self.env['product.supplierinfo']
+            for fname, field in sorted(supplierinfo_model._fields.items()):
+                # Skip technical/system fields
+                if fname.startswith('_') or fname in [
+                    'id', 'create_date', 'write_date', 'create_uid', 'write_uid',
+                    'display_name', '__last_update', 'product_tmpl_id', 'product_id',
+                    'partner_id', 'company_id', 'currency_id'
+                ]:
+                    continue
+                
+                # Skip one2many and many2many fields
+                if field.type in ['one2many', 'many2many']:
+                    continue
+                
+                # Add valid field
+                fields_list.append((fname, f"{fname} ({field.type})"))
+        except Exception as e:
+            _logger.warning(f"Error getting field selection: {e}")
+        
+        return sorted(fields_list, key=lambda x: x[1])
