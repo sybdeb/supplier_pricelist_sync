@@ -1,5 +1,7 @@
 from . import import_error
 from . import import_history
+from . import import_schedule
+from . import import_queue
 from . import base_import_extend
 from . import brand_mapping
 from . import dashboard
@@ -10,5 +12,3 @@ from . import supplier_mapping_template
 from . import product_supplierinfo
 from . import product_template
 from . import res_partner
-from . import import_queue
-from . import import_schedule
