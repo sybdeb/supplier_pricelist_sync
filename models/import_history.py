@@ -22,13 +22,6 @@ class ImportHistory(models.Model):
     supplier_id = fields.Many2one('res.partner', string='Leverancier', required=False)
     user_id = fields.Many2one('res.users', string='Imported By', default=lambda self: self.env.user)
     
-    # Schedule link (voor automatische imports)
-    schedule_id = fields.Many2one(
-        'supplier.import.schedule', 
-        string='Schedule', 
-        help="Link naar scheduled import als dit een automatische import was"
-    )
-    
     # File info
     filename = fields.Char('Bestandsnaam')
     file_size = fields.Integer('File Size (bytes)')
