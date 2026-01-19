@@ -2,24 +2,26 @@
 
 Lokale test commands voor product_supplier_sync module.
 
-## Quick Test (SkipLint) - 2-3 min
+## ✅ Local Testing (OCA Framework)
+
+### Quick Test (SkipLint) - 2-3 min
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File C:\Users\Sybde\Projects\oca-local-testing\run_test.ps1 -ModulePath 'C:\Users\Sybde\Projects\product_supplier_sync' -SkipLint
+powershell.exe -ExecutionPolicy Bypass -File "C:\Users\Sybde\Projects\oca-local-testing\run_test.ps1" -ModulePath "C:\Users\Sybde\Projects\product_supplier_sync" -SkipLint
 ```
 
-## CI Test (met Linting) - 4-5 min
+### CI Test (met Linting) - 4-5 min
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File C:\Users\Sybde\Projects\oca-local-testing\run_test.ps1 -ModulePath 'C:\Users\Sybde\Projects\product_supplier_sync'
+powershell.exe -ExecutionPolicy Bypass -File "C:\Users\Sybde\Projects\oca-local-testing\run_test.ps1" -ModulePath "C:\Users\Sybde\Projects\product_supplier_sync"
 ```
 
-## Complete Test - 5-7 min
+### Complete Test - 5-7 min
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File C:\Users\Sybde\Projects\oca-local-testing\complete_test.ps1 -ModulePath 'C:\Users\Sybde\Projects\product_supplier_sync'
+powershell.exe -ExecutionPolicy Bypass -File "C:\Users\Sybde\Projects\oca-local-testing\complete_test.ps1" -ModulePath "C:\Users\Sybde\Projects\product_supplier_sync"
 ```
 
-## Dev Workflow (SkipClean = reuse DB) - Snel retesten
+### Dev Workflow (SkipClean = reuse DB) - Snel retesten
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File C:\Users\Sybde\Projects\oca-local-testing\run_test.ps1 -ModulePath 'C:\Users\Sybde\Projects\product_supplier_sync' -SkipLint -SkipClean
+powershell.exe -ExecutionPolicy Bypass -File "C:\Users\Sybde\Projects\oca-local-testing\run_test.ps1" -ModulePath "C:\Users\Sybde\Projects\product_supplier_sync" -SkipLint -SkipClean
 ```
 
 ## Exit Codes
@@ -39,3 +41,10 @@ python -m pytest tests/test_basic.py::TestSupplierSync::test_module_installed -v
 ## Test Files in Module
 - `tests/test_basic.py` - Module install, basic fields (236 lines)
 - `tests/test_bulk_import.py` - Bulk import optimization (461 lines)
+
+## Test Results - 2026-01-19
+✅ **ALL CHECKS PASSED** - Local test on product_supplier_sync
+- Linting: OK
+- Manifest: OK
+- Unit Tests: OK
+
