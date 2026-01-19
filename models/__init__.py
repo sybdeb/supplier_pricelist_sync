@@ -1,5 +1,5 @@
 from . import import_error
-
+from . import import_history
 from . import base_import_extend
 from . import brand_mapping
 from . import dashboard
