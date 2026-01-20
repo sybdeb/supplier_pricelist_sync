@@ -751,12 +751,13 @@ class SupplierImportSchedule(models.Model):
             filename = self.api_url.split('/')[-1]
             if not filename or '?' in filename:
                 # Extract from URL or default
+                timestamp = fields.Datetime.now().strftime('%Y%m%d_%H%M%S')
                 if 'xml' in self.api_url.lower():
-                    filename = f"download_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml"
+                    filename = f"download_{timestamp}.xml"
                 elif 'json' in self.api_url.lower():
-                    filename = f"download_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                    filename = f"download_{timestamp}.json"
                 else:
-                    filename = f"download_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                    filename = f"download_{timestamp}.csv"
             
             _logger.info(f"Downloaded {len(response.content)} bytes as {filename}")
             
