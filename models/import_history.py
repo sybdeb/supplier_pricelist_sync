@@ -17,7 +17,7 @@ class ImportHistory(models.Model):
     _order = 'import_date desc'
     
     # Basis info
-    name = fields.Char('Import Name', compute='_compute_name', store=True)
+    name = fields.Char('Import Name', compute='_compute_name', store=True, readonly=False)
     import_date = fields.Datetime('Import Date', default=fields.Datetime.now, required=True)
     supplier_id = fields.Many2one('res.partner', string='Leverancier', required=False)
     user_id = fields.Many2one('res.users', string='Imported By', default=lambda self: self.env.user)
@@ -87,12 +87,16 @@ class ImportHistory(models.Model):
     # Summary text
     summary = fields.Text('Import Summary')
     
-    @api.depends('supplier_id', 'import_date')
+    @api.depends('supplier_id', 'import_date', 'filename')
     def _compute_name(self):
         for record in self:
             if record.supplier_id and record.import_date:
-                date_str = fields.Datetime.to_string(record.import_date)
+                date_str = fields.Datetime.to_string(record.import_date)[:16]  # YYYY-MM-DD HH:MM
                 record.name = f"{record.supplier_id.name} - {date_str}"
+            elif record.filename:
+                record.name = f"Import - {record.filename}"
+            elif record.supplier_id:
+                record.name = f"Import - {record.supplier_id.name}"
             else:
                 record.name = "New Import"
     
