@@ -18,6 +18,10 @@ class ImportHistory(models.Model):
     supplier_id = fields.Many2one('res.partner', string='Leverancier', required=True, 
                                   domain="[('supplier_rank', '>', 0)]")
     
+    # File info
+    filename = fields.Char('Bestandsnaam')
+    file_size = fields.Integer('File Size (bytes)')
+    
     # Schedule link (added for product_supplier_sync scheduled imports)
     schedule_id = fields.Many2one(
         'supplier.import.schedule', 
