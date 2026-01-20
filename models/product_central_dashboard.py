@@ -168,7 +168,7 @@ class ProductCentralDashboard(models.Model):
             
             # Scheduled imports (PRO module check)
             is_pro = self.env['ir.module.module'].search([
-                ('name', '=', 'product_supplier_sync_pro'),
+                ('name', '=', 'product_supplier_sync_pro_unlock'),
                 ('state', '=', 'installed')
             ], limit=1)
             
@@ -329,7 +329,7 @@ class ProductCentralDashboard(models.Model):
     def action_view_schedules(self):
         """Open scheduled imports (PRO only)"""
         is_pro = self.env['ir.module.module'].search([
-            ('name', '=', 'product_supplier_sync_pro'),
+            ('name', '=', 'product_supplier_sync_pro_unlock'),
             ('state', '=', 'installed')
         ], limit=1)
         
