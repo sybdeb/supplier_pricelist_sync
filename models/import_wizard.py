@@ -37,6 +37,12 @@ class AdvancedSupplierImportWizard(models.TransientModel):
     # Step 2: CSV Upload
     csv_file = fields.Binary('CSV File')
     csv_filename = fields.Char('File Name')
+    csv_separator = fields.Selection([
+        (',', 'Comma (,)'),
+        (';', 'Semicolon (;)'),
+        ('\t', 'Tab'),
+        ('|', 'Pipe (|)'),
+    ], string='CSV Separator', default=',', help='Column separator in CSV file')
     
     # Step 3: Column Mapping - TEMPORARY, not saved to DB
     mapping_data = fields.Text('Mapping Data (JSON)', help='Temporary mapping for this session')
