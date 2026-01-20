@@ -38,9 +38,8 @@ class AdvancedSupplierImportWizard(models.TransientModel):
     csv_file = fields.Binary('CSV File')
     csv_filename = fields.Char('File Name')
     
-    # Step 3: Column Mapping
-    mapping_line_ids = fields.One2many('supplier.import.mapping', 'wizard_id',
-                                       string='Column Mappings')
+    # Step 3: Column Mapping - TEMPORARY, not saved to DB
+    mapping_data = fields.Text('Mapping Data (JSON)', help='Temporary mapping for this session')
     
     # Step 4: Import Confirmation
     import_count = fields.Integer('Records to Import', default=0)
@@ -90,8 +89,6 @@ class SupplierImportMapping(models.Model):
     supplier_id = fields.Many2one('res.partner', string='Supplier',
                                   domain="[('supplier_rank', '>', 0)]", required=True,
                                   ondelete='cascade')
-    wizard_id = fields.Many2one('advanced.supplier.import.wizard', string='Wizard',
-                               ondelete='cascade')
     
     # Mapping definition
     csv_column = fields.Char('CSV Column Name', required=True,
