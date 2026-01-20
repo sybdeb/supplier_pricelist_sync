@@ -107,8 +107,6 @@ class DirectImport(models.TransientModel):
     
     # Import results
     import_summary = fields.Text('Import Summary', readonly=True)
-    total_rows = fields.Integer('Total Rows', readonly=True, default=0,
-                                help='Total number of rows in CSV file')
     
     # =========================================================================
     # TEMPLATE LOADING
@@ -329,33 +327,6 @@ class DirectImport(models.TransientModel):
         """
         self.ensure_one()
         
-        # FREE LIMITERS (v19.0.3.5.0)
-        if not self.is_pro_available:
-            # Limiet 1: Max 2 imports per dag per gebruiker
-            today = fields.Date.today()
-            today_imports = self.env['supplier.import.history'].search([
-                ('import_date', '>=', today),
-                ('create_uid', '=', self.env.uid)
-            ])
-            if len(today_imports) >= 2:
-                raise UserError(
-                    "FREE versie limiet bereikt!\n\n"
-                    "Maximaal 2 imports per dag.\n"
-                    f"U heeft vandaag al {len(today_imports)} imports uitgevoerd.\n\n"
-                    "Upgrade naar PRO voor onbeperkte imports.\n\n"
-                    "Contact: info@de-bruijn.email"
-                )
-            
-            # Limiet 2: Max 2000 rijen per import
-            if self.total_rows > 2000:
-                raise UserError(
-                    f"FREE versie limiet bereikt!\n\n"
-                    f"Maximaal 2000 regels per import.\n"
-                    f"Uw bestand heeft {self.total_rows} regels.\n\n"
-                    "Upgrade naar PRO voor onbeperkte import grootte.\n\n"
-                    "Contact: info@de-bruijn.email"
-                )
-        
         if not self.csv_file:
             raise UserError("Geen CSV bestand gevonden")
         
@@ -383,6 +354,33 @@ class DirectImport(models.TransientModel):
         # Check file size to determine if background processing is needed
         csv_data = base64.b64decode(self.csv_file).decode(self.encoding)
         row_count = len(csv_data.split('\n')) - 1  # -1 for header
+        
+        # FREE LIMITERS (v19.0.3.5.0) - Check AFTER row_count calculation
+        if not self.is_pro_available:
+            # Limiet 1: Max 2 imports per dag per gebruiker
+            today = fields.Date.today()
+            today_imports = self.env['supplier.import.history'].search([
+                ('import_date', '>=', today),
+                ('create_uid', '=', self.env.uid)
+            ])
+            if len(today_imports) >= 2:
+                raise UserError(
+                    "FREE versie limiet bereikt!\n\n"
+                    "Maximaal 2 imports per dag.\n"
+                    f"U heeft vandaag al {len(today_imports)} imports uitgevoerd.\n\n"
+                    "Upgrade naar PRO voor onbeperkte imports.\n\n"
+                    "Contact: info@de-bruijn.email"
+                )
+            
+            # Limiet 2: Max 2000 rijen per import
+            if row_count > 2000:
+                raise UserError(
+                    f"FREE versie limiet bereikt!\n\n"
+                    f"Maximaal 2000 regels per import.\n"
+                    f"Uw bestand heeft {row_count} regels.\n\n"
+                    "Upgrade naar PRO voor onbeperkte import grootte.\n\n"
+                    "Contact: info@de-bruijn.email"
+                )
         
         # For large imports (>1000 rows), queue as background job
         if row_count > 1000:
