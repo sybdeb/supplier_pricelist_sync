@@ -107,6 +107,8 @@ class DirectImport(models.TransientModel):
     
     # Import results
     import_summary = fields.Text('Import Summary', readonly=True)
+    total_rows = fields.Integer('Total Rows', readonly=True, default=0,
+                                help='Total number of rows in CSV file')
     
     # =========================================================================
     # TEMPLATE LOADING
