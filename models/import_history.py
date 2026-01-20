@@ -25,6 +25,26 @@ class ImportHistory(models.Model):
     filename = fields.Char('Bestandsnaam')
     file_size = fields.Integer('File Size (bytes)')
     
+    # Import statistics
+    total_rows = fields.Integer('Totaal Rijen', default=0)
+    created_count = fields.Integer('Aangemaakt', default=0)
+    updated_count = fields.Integer('Bijgewerkt', default=0)
+    skipped_count = fields.Integer('Overgeslagen', default=0)
+    error_count = fields.Integer('Errors', default=0)
+    
+    # Status and timing
+    state = fields.Selection([
+        ('queued', 'In Wachtrij'),
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('completed_with_errors', 'Completed with Errors'),
+        ('failed', 'Failed'),
+    ], string='Status', default='running')
+    duration = fields.Float('Duration (seconds)', default=0.0)
+    
+    # Summary
+    summary = fields.Text('Import Summary')
+    
     # Schedule link (added for product_supplier_sync scheduled imports)
     schedule_id = fields.Many2one(
         'supplier.import.schedule', 
