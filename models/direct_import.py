@@ -387,7 +387,7 @@ class DirectImport(models.TransientModel):
             # Create history record in 'queued' state
             history = self.env['supplier.import.history'].create({
                 'supplier_id': self.supplier_id.id,
-                'import_file_name': self.csv_filename,
+                'filename': self.csv_filename,
                 'state': 'queued',
                 'total_rows': row_count,
             })
@@ -433,7 +433,7 @@ class DirectImport(models.TransientModel):
         
         history = self.env['supplier.import.history'].create({
             'supplier_id': self.supplier_id.id,
-            'import_file_name': self.csv_filename,
+            'filename': self.csv_filename,
             'state': 'running',
             'mapping_data': json.dumps(mapping),  # Archive mapping for this import
         })
