@@ -180,9 +180,11 @@
         <field name="arch" type="xml">
             <list string="Mapping Templates">
                 <field name="supplier_id"/>
-                <field name="import_count"/>
-                <field name="last_used_date"/>
-                <field name="created_date"/>
+                <field name="csv_column"/>
+                <field name="odoo_field"/>
+                <field name="is_key_field"/>
+                <field name="skip_empty"/>
+                <field name="sequence"/>
             </list>
         </field>
     </record>
@@ -194,30 +196,13 @@
             <form string="Mapping Template">
                 <sheet>
                     <group>
-                        <group>
-                            <field name="supplier_id"/>
-                            <field name="import_count" readonly="1"/>
-                        </group>
-                        <group>
-                            <field name="last_used_date" readonly="1"/>
-                            <field name="created_date" readonly="1"/>
-                        </group>
+                        <field name="supplier_id"/>
+                        <field name="csv_column"/>
+                        <field name="odoo_field"/>
+                        <field name="is_key_field"/>
+                        <field name="skip_empty"/>
+                        <field name="sequence"/>
                     </group>
-                    
-                    <notebook>
-                        <page string="Mapping Regels">
-                            <field name="mapping_line_ids">
-                                <list editable="bottom">
-                                    <field name="sequence" widget="handle"/>
-                                    <field name="csv_column"/>
-                                    <field name="odoo_field"/>
-                                    <field name="is_required"/>
-                                    <field name="default_value"/>
-                                    <field name="notes"/>
-                                </list>
-                            </field>
-                        </page>
-                    </notebook>
                 </sheet>
             </form>
         </field>

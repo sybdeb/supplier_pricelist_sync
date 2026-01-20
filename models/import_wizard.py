@@ -43,12 +43,25 @@ class AdvancedSupplierImportWizard(models.TransientModel):
         ('\t', 'Tab'),
         ('|', 'Pipe (|)'),
     ], string='CSV Separator', default=',', help='Column separator in CSV file')
+    csv_headers = fields.Text('CSV Headers', readonly=True,
+                              help='Detected header row from uploaded CSV file')
+    csv_preview = fields.Html('CSV Preview', readonly=True, sanitize=False,
+                              help='HTML preview of first rows of the uploaded CSV')
     
     # Step 3: Column Mapping - TEMPORARY, not saved to DB
     mapping_data = fields.Text('Mapping Data (JSON)', help='Temporary mapping for this session')
+    mapping_product_code = fields.Char('Product Code Column')
+    mapping_price = fields.Char('Price Column')
+    mapping_min_qty = fields.Char('Minimum Quantity Column')
+    mapping_delivery_time = fields.Char('Delivery Time Column')
+    mapping_product_name = fields.Char('Product Name Column')
+    mapping_supplier_code = fields.Char('Supplier Code Column')
+    mapping_supplier_name = fields.Char('Supplier Name Column')
+    mapping_currency = fields.Char('Currency Column')
     
     # Step 4: Import Confirmation
     import_count = fields.Integer('Records to Import', default=0)
+    import_result = fields.Text('Import Result', readonly=True)
     
     def action_load_csv(self):
         """Parse and load CSV file"""
@@ -69,6 +82,10 @@ class AdvancedSupplierImportWizard(models.TransientModel):
         current_idx = steps.index(self.state)
         if current_idx > 0:
             self.state = steps[current_idx - 1]
+
+    def action_previous_step(self):
+        """Alias for button handler (matches view name)"""
+        return self.action_prev_step()
     
     def action_import(self):
         """Execute import with current mappings"""
