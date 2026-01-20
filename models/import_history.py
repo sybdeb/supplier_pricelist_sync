@@ -66,3 +66,23 @@ class ImportHistory(models.Model):
         'history_id', 
         string='Import Errors'
     )
+    
+    def action_set_failed(self):
+        """Manually mark import as failed"""
+        for record in self:
+            record.write({'state': 'failed', 'summary': 'Handmatig gemarkeerd als mislukt'})
+            # Also update queue if exists
+            queue_item = self.env['supplier.import.queue'].search([('history_id', '=', record.id)], limit=1)
+            if queue_item:
+                queue_item.write({'state': 'failed'})
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
+    
+    def action_set_completed(self):
+        """Manually mark import as completed"""
+        for record in self:
+            record.write({'state': 'completed', 'summary': 'Handmatig gemarkeerd als voltooid'})
+            # Also update queue if exists
+            queue_item = self.env['supplier.import.queue'].search([('history_id', '=', record.id)], limit=1)
+            if queue_item:
+                queue_item.write({'state': 'done'})
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
