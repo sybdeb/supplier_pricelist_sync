@@ -11,7 +11,7 @@
             </xpath>
             <xpath expr="//field[@name='category_id']" position="after">
                 <field name="last_sync_date" string="Laatste Import" readonly="1" 
-                       attrs="{'invisible': [('supplier_rank', '=', 0)]}"/>
+                       invisible="supplier_rank == 0"/>
             </xpath>
         </field>
     </record>
