@@ -82,16 +82,21 @@
         </field>
     </record>
 
-    <!-- Import Errors Tree View - Extend base view to add brand column -->
-    <record id="view_import_error_tree_inherit" model="ir.ui.view">
-        <field name="name">supplier.import.error.tree.inherit</field>
+    <!-- Import Errors Tree View -->
+    <record id="view_import_error_tree" model="ir.ui.view">
+        <field name="name">supplier.import.error.tree</field>
         <field name="model">supplier.import.error</field>
-        <field name="inherit_id" ref="dbw_odoo_base_v2.view_import_error_tree"/>
         <field name="arch" type="xml">
-            <!-- Add brand column after product_name -->
-            <xpath expr="//field[@name='product_name']" position="after">
+            <list string="Import Errors - Products Not Found" decoration-muted="resolved == True">
+                <field name="history_id"/>
+                <field name="row_number"/>
+                <field name="barcode"/>
+                <field name="product_code"/>
+                <field name="product_name"/>
                 <field name="brand"/>
-            </xpath>
+                <field name="error_message"/>
+                <field name="resolved" widget="boolean_toggle"/>
+            </list>
         </field>
     </record>
 
