@@ -18,6 +18,9 @@ class ImportHistory(models.Model):
     supplier_id = fields.Many2one('res.partner', string='Leverancier', required=True, 
                                   domain="[('supplier_rank', '>', 0)]")
     
+    # User tracking
+    user_id = fields.Many2one('res.users', string='Imported By', default=lambda self: self.env.user)
+    
     # File info
     filename = fields.Char('Bestandsnaam')
     file_size = fields.Integer('File Size (bytes)')
