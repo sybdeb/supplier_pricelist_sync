@@ -94,7 +94,7 @@
                 <field name="product_code"/>
                 <field name="product_name"/>
                 <field name="brand"/>
-                <field name="notes"/>
+                <field name="error_message"/>
                 <field name="resolved"/>
             </list>
         </field>

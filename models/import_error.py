@@ -19,6 +19,9 @@ class ImportError(models.Model):
     product_name = fields.Char('Product Name', help='Product naam uit CSV')
     brand = fields.Char('Brand', help='Merk uit CSV')
     
+    # Error details
+    error_message = fields.Text('Error Message', help='Foutbericht of beschrijving van het probleem')
+    
     # Error type (base heeft dit veld niet, dus we maken het hier)
     error_type = fields.Selection([
         ('product_not_found', 'Product Not Found'),
