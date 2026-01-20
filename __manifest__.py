@@ -60,5 +60,6 @@ Built for Odoo 19 Community Edition
     "installable": True,
     "application": True,
     "auto_install": False,
+    "uninstall_hook": "uninstall_hook",
 }
 
