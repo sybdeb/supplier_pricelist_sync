@@ -51,7 +51,6 @@ Built for Odoo 19 Community Edition
         "views/product_central_dashboard_views.xml",
         "views/res_partner_views.xml",
         "views/smart_import_views.xml",
-        "views/smart_import_session_views.xml",
         "views/advanced_wizard_views.xml",
         "views/mapping_save_wizard_views.xml",
         "views/wizard_action.xml",
