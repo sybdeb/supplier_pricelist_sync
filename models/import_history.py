@@ -17,7 +17,7 @@ class ImportHistory(models.Model):
     _order = 'import_date desc'
     
     # Basis info
-    name = fields.Char('Import Name', compute='_compute_name', store=True, readonly=False)
+    name = fields.Char('Import Name', compute='_compute_name', store=True, readonly=False, required=False, default='New Import')
     import_date = fields.Datetime('Import Date', default=fields.Datetime.now, required=True)
     supplier_id = fields.Many2one('res.partner', string='Leverancier', required=False)
     user_id = fields.Many2one('res.users', string='Imported By', default=lambda self: self.env.user)
