@@ -304,7 +304,7 @@ class DirectImport(models.TransientModel):
         PRO unlocks: unlimited imports/day, unlimited rows, scheduled imports
         """
         pro_module = self.env['ir.module.module'].sudo().search([
-            ('name', '=', 'product_supplier_sync_pro'),
+            ('name', '=', 'product_supplier_sync_pro_unlock'),
             ('state', '=', 'installed')
         ], limit=1)
         for record in self:
