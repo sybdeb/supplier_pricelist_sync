@@ -19,6 +19,7 @@ class SupplierBrandMapping(models.Model):
         required=True,
         help='De merk naam zoals die in de CSV van deze leverancier voorkomt'
     )
+    
     odoo_brand_id = fields.Many2one(
         'product.brand',
         string='Odoo Merk',
