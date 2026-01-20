@@ -14,6 +14,10 @@ class ImportHistory(models.Model):
     """
     _inherit = 'supplier.import.history'
     
+    # Supplier link (REQUIRED by product_supplier_sync)
+    supplier_id = fields.Many2one('res.partner', string='Leverancier', required=True, 
+                                  domain="[('supplier_rank', '>', 0)]")
+    
     # Schedule link (added for product_supplier_sync scheduled imports)
     schedule_id = fields.Many2one(
         'supplier.import.schedule', 
