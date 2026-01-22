@@ -52,6 +52,7 @@ class SupplierImportSchedule(models.Model):
     # PRO detection (v19.0.3.5.0 Freemium)
     is_pro_available = fields.Boolean(
         compute='_compute_is_pro_available',
+        store=True,
         string='PRO Beschikbaar',
         help='PRO module geïnstalleerd voor scheduled imports'
     )
@@ -395,15 +396,23 @@ class SupplierImportSchedule(models.Model):
     # COMPUTED FIELDS
     # =========================================================================
     
-    @api.depends()
+    @api.depends('supplier_id')  # Retrigger on record access
     def _compute_is_pro_available(self):
         """Check if PRO module is installed"""
         pro_module = self.env['ir.module.module'].sudo().search([
-            ('name', '=', 'supplier_sync_pro'),
+            ('name', '=', 'product_supplier_sync_pro_unlock'),
             ('state', '=', 'installed')
         ], limit=1)
+        is_pro = bool(pro_module)
         for record in self:
-            record.is_pro_available = bool(pro_module)
+            record.is_pro_available = is_pro
+    
+    @api.model
+    def _refresh_pro_availability(self):
+        """Force refresh PRO availability for all schedules"""
+        schedules = self.search([])
+        for schedule in schedules:
+            schedule._compute_is_pro_available()
     
     @api.depends('cron_id', 'cron_id.nextcall')
     def _compute_next_run(self):
