@@ -43,16 +43,11 @@
                             class="btn-success" invisible="not active"/>
                     <button name="action_create_cron" type="object" string="Activate Scheduling" 
                             class="btn-warning" invisible="schedule_type == 'manual' or cron_id"/>
-                    <button name="action_view_history" type="object" string="View Import History" 
-                            class="btn-secondary"/>
                     <field name="last_run_status" widget="statusbar"/>
                 </header>
                 
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button name="action_view_history" type="object" class="oe_stat_button" icon="fa-history">
-                            <field name="total_runs" widget="statinfo" string="Total Runs"/>
-                        </button>
                         <button class="oe_stat_button" icon="fa-check-circle" invisible="success_runs == 0">
                             <field name="success_runs" widget="statinfo" string="Successful"/>
                         </button>

@@ -385,12 +385,6 @@ class SupplierImportSchedule(models.Model):
         readonly=True
     )
     
-    import_history_ids = fields.One2many(
-        'supplier.import.history',
-        'schedule_id',
-        string='Import History'
-    )
-    
     # =========================================================================
     # COMPUTED FIELDS
     # =========================================================================
@@ -1270,19 +1264,6 @@ class SupplierImportSchedule(models.Model):
                 'type': 'success',
                 'sticky': False,
             }
-        }
-    
-    def action_view_history(self):
-        """View import history voor deze schedule"""
-        self.ensure_one()
-        
-        return {
-            'name': f'Import History - {self.name}',
-            'type': 'ir.actions.act_window',
-            'res_model': 'supplier.import.history',
-            'view_mode': 'list,form',
-            'domain': [('schedule_id', '=', self.id)],
-            'context': {'default_schedule_id': self.id}
         }
     
     # =========================================================================
