@@ -67,6 +67,14 @@ class ImportHistory(models.Model):
         string='Import Errors'
     )
     
+    def create(self, vals):
+        """Automatically generate name if not provided"""
+        from datetime import datetime
+        if not vals.get('name'):
+            # Generate name from timestamp
+            vals['name'] = f"Import {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        return super().create(vals)
+    
     def action_set_failed(self):
         """Manually mark import as failed"""
         for record in self:
