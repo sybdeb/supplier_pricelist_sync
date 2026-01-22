@@ -227,18 +227,6 @@
                                 <field name="last_run_message" nolabel="1" 
                                        widget="text" placeholder="Nog geen imports uitgevoerd"/>
                             </group>
-                            <separator string="Recente Imports"/>
-                            <field name="import_history_ids" nolabel="1" mode="list">
-                                <list limit="10">
-                                    <field name="import_date"/>
-                                    <field name="state"/>
-                                    <field name="total_rows"/>
-                                    <field name="created_count"/>
-                                    <field name="updated_count"/>
-                                    <field name="error_count"/>
-                                    <field name="duration" widget="float_time"/>
-                                </list>
-                            </field>
                         </page>
                     </notebook>
                 </sheet>
