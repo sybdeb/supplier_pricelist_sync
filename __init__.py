@@ -2,6 +2,23 @@ from . import models
 from . import wizard
 
 
+def post_init_hook(env):
+    """
+    Initialize module: set is_pro_available flag based on PRO module installation
+    """
+    pro_module = env['ir.module.module'].sudo().search([
+        ('name', '=', 'product_supplier_sync_pro_unlock'),
+        ('state', '=', 'installed')
+    ], limit=1)
+    
+    is_pro = bool(pro_module)
+    
+    # Update all scheduled imports with PRO status
+    schedules = env['supplier.import.schedule'].search([])
+    for schedule in schedules:
+        schedule.is_pro_available = is_pro
+
+
 def uninstall_hook(env):
     """
     Clean up all module data on uninstall to prevent foreign key constraint violations
