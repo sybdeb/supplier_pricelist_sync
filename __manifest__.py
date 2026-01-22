@@ -22,7 +22,7 @@ PRO Version (Scheduled Automation):
 - Unlimited file size
 - Scheduled Imports - HTTP/FTP/SFTP/API/Database
 - Automatic periodic imports via cron
-- All PRO features visible in UI, unlocked by installing supplier_sync_pro
+- All PRO features visible in UI, unlocked by installing product_supplier_sync_pro_unlock
 
 Contact: info@de-bruijn.email for PRO upgrade
 
