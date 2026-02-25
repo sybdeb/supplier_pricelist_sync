@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_supplier_checkbox" model="ir.ui.view">
+        <field name="name">res.partner.form.supplier.checkbox</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='company_type']" position="after">
+                <label for="is_supplier_sync" string="Is Supplier"/>
+                <field name="is_supplier_sync" widget="boolean_toggle" nolabel="1"/>
+            </xpath>
+            <xpath expr="//field[@name='category_id']" position="after">
+                <field name="last_sync_date" string="Laatste Import" readonly="1" 
+                       attrs="{'invisible': [('supplier_rank', '=', 0)]}"/>
+            </xpath>
+            
+            <!-- Add Brand Mappings notebook page -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Brand Mappings" attrs="{'invisible': [('supplier_rank', '=', 0)]}">
+                    <field name="brand_mapping_ids" context="{'default_supplier_id': active_id}">
+                        <tree editable="bottom">
+                            <field name="csv_brand_name" string="CSV Brand Naam"/>
+                            <field name="odoo_brand_id" string="Odoo Merk"/>
+                            <field name="odoo_brand_name" string="Odoo Merk Naam" readonly="1"/>
+                        </tree>
+                    </field>
+                    <div class="oe_grey">
+                        <p>Map brand namen uit CSV bestanden naar Odoo merken.</p>
+                        <p>Bijvoorbeeld: CSV "Glorious" → Odoo "Glorious Gaming"</p>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Add last_sync_date to supplier tree view -->
+    <record id="view_partner_tree_supplier_sync" model="ir.ui.view">
+        <field name="name">res.partner.tree.supplier.sync</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='phone']" position="after">
+                <field name="last_sync_date" string="Laatste Import" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

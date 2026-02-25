@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Smart Import Form View -->
+    <record id="view_supplier_smart_import_form" model="ir.ui.view">
+        <field name="name">supplier.smart.import.form</field>
+        <field name="model">supplier.smart.import</field>
+        <field name="arch" type="xml">
+            <form string="Smart Supplier Import">
+                
+                <sheet>
+                    <div class="oe_title">
+                        <h1>🧠 Smart Import System</h1>
+                        <p class="text-muted">Automatic column mapping based on supplier patterns</p>
+                    </div>
+                    
+                    <group>
+                        <group>
+                            <field name="supplier_id" options="{'no_create': True}"/>
+                            <field name="res_model" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="file" filename="file_name"/>
+                            <field name="file_name"/>
+                            <field name="encoding"/>
+                            <field name="has_headers"/>
+                        </group>
+                    </group>
+                    
+                    <!-- TIJDELIJK: Test Native Import -->
+                    <div class="alert alert-warning mt-3" invisible="file">
+                        <strong>🔗 Of gebruik Odoo's Native Import:</strong>
+                        <button name="action_use_native_import" 
+                                string="Open Native Import" 
+                                type="object" 
+                                class="btn btn-primary ml-2"
+                                invisible="not supplier_id"
+                                help="Open Odoo's native import wizard met supplier context"/>
+                        <p class="mb-0 mt-2"><small>Native import heeft meer functies (batch import, advanced mapping, etc.)</small></p>
+                    </div>
+                    
+                    <!-- CSV Preview Table -->
+                    <div invisible="not preview_data">
+                        <h3>📄 CSV Preview (First 5 rows, max 4 columns shown)</h3>
+                        <p class="text-muted">Preview of your data to verify correct parsing</p>
+                        
+                        <div class="table-responsive">
+                            <field name="preview_html" readonly="1" nolabel="1"/>
+                        </div>
+                    </div>
+                    
+                    <!-- Manual Column Mapping -->
+                    <div invisible="not mapping_lines">
+                        <h3>🗺️ Column Mapping</h3>
+                        <p class="text-muted">Map CSV columns to Odoo fields manually</p>
+                        
+                        <div class="alert alert-info">
+                            <strong>Map your CSV columns:</strong> Select target Odoo field for each CSV column.
+                        </div>
+                        
+                        <!-- Interactive Column Mapping - Using Odoo's Native Fields Tree -->
+                        <field name="mapping_lines" nolabel="1">
+                            <list editable="bottom" create="0" delete="0">
+                                <field name="csv_column" readonly="1"/>
+                                <field name="odoo_field" required="1" placeholder="Select Odoo field..."/>
+                                <field name="sample_data" readonly="1"/>
+                            </list>
+                        </field>
+                    </div>
+                    
+                    <!-- Debug Info: Show saved mapping data -->
+                    <div invisible="not mapping_data">
+                        <h4>🔍 Debug: Opgeslagen Mapping Data</h4>
+                        <field name="mapping_data" readonly="1" nolabel="1" widget="text"/>
+                    </div>
+                    
+                    <!-- Hidden fields for data storage -->
+                    <group invisible="True">
+                        <field name="headers"/>
+                        <field name="preview_data"/>
+                        <field name="file_type"/>
+                    </group>
+                </sheet>
+                
+                <!-- Custom footer met onze eigen knoppen -->
+                <footer>
+                    <button string="💾 Save as Template" 
+                            name="action_save_as_template" 
+                            type="object" 
+                            class="btn-secondary"
+                            invisible="not mapping_lines"
+                            help="Sla de huidige kolom mapping op als herbruikbare template"/>
+                    <button string="📥 Import Data" 
+                            name="action_import_data" 
+                            type="object" 
+                            class="btn-primary"
+                            invisible="not mapping_lines"
+                            help="Voer de import uit met de geconfigureerde mapping"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action for Smart Import -->
+    <record id="action_supplier_smart_import" model="ir.actions.act_window">
+        <field name="name">Smart Supplier Import</field>
+        <field name="res_model">supplier.smart.import</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{}</field>
+    </record>
+</odoo>
