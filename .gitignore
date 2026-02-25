@@ -1,0 +1,31 @@
+# Python
+*.pyc
+*.pyo
+__pycache__/
+.pytest_cache/
+
+# Odoo
+*.pot
+.odoo_history
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+tests/__pycache__/
+test_results.log
+
+# Deployment
+v2.1/
+v3.0/
+v3/
+deploy_backup/
+*.backup
+
+# Windows test files
+C:*
+
+# Logs
+*.log
