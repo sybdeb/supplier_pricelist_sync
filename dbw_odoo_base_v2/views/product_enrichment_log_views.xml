@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Product Enrichment Log Tree View -->
+    <record id="product_enrichment_log_view_tree" model="ir.ui.view">
+        <field name="name">product.enrichment.log.view.tree</field>
+        <field name="model">product.enrichment.log</field>
+        <field name="arch" type="xml">
+            <list string="Enrichment Logs" default_order="sync_date desc">
+                <field name="sync_date"/>
+                <field name="product_id"/>
+                <field name="source"/>
+                <field name="status" decoration-success="status == 'success'" 
+                       decoration-danger="status == 'error'"
+                       decoration-warning="status in ('no_data', 'partial')"/>
+                <field name="records_created"/>
+                <field name="fields_updated"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Product Enrichment Log Form View -->
+    <record id="product_enrichment_log_view_form" model="ir.ui.view">
+        <field name="name">product.enrichment.log.view.form</field>
+        <field name="model">product.enrichment.log</field>
+        <field name="arch" type="xml">
+            <form string="Enrichment Log" create="false" edit="false">
+                <header>
+                    <button name="action_view_product" type="object" string="View Product" class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="product_id"/>
+                            <field name="source"/>
+                            <field name="sync_date"/>
+                            <field name="status"/>
+                        </group>
+                        <group>
+                            <field name="records_created"/>
+                            <field name="fields_updated"/>
+                        </group>
+                    </group>
+                    <group string="Error Details" invisible="status == 'success'">
+                        <field name="error_message" nolabel="1" placeholder="No error message..."/>
+                    </group>
+                    <group string="Metadata" invisible="not metadata">
+                        <field name="metadata" widget="json" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Product Enrichment Log Search View -->
+    <record id="product_enrichment_log_view_search" model="ir.ui.view">
+        <field name="name">product.enrichment.log.view.search</field>
+        <field name="model">product.enrichment.log</field>
+        <field name="arch" type="xml">
+            <search string="Enrichment Logs">
+                <field name="product_id"/>
+                <field name="source"/>
+                <filter name="filter_success" string="Success" domain="[('status', '=', 'success')]"/>
+                <filter name="filter_error" string="Error" domain="[('status', '=', 'error')]"/>
+                <filter name="filter_no_data" string="No Data" domain="[('status', '=', 'no_data')]"/>
+                <separator/>
+                <filter name="filter_icecat" string="Icecat" domain="[('source', '=', 'icecat')]"/>
+                <filter name="filter_barcodelookup" string="Barcode Lookup" domain="[('source', '=', 'barcodelookup')]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter name="group_product" string="Product" context="{'group_by': 'product_id'}"/>
+                    <filter name="group_source" string="Source" context="{'group_by': 'source'}"/>
+                    <filter name="group_status" string="Status" context="{'group_by': 'status'}"/>
+                    <filter name="group_date" string="Sync Date" context="{'group_by': 'sync_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Product Enrichment Log Action -->
+    <record id="product_enrichment_log_action" model="ir.actions.act_window">
+        <field name="name">Enrichment Logs</field>
+        <field name="res_model">product.enrichment.log</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_empty_folder">
+                No enrichment logs yet
+            </p>
+            <p>
+                Enrichment logs track when products are enriched with data from external sources (Icecat, Barcode Lookup, etc.)
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item (under existing structure, adjust as needed) -->
+    <menuitem id="menu_product_enrichment_log"
+              name="Enrichment Logs"
+              parent="dbw_odoo_base_v2.menu_dbw_root"
+              action="product_enrichment_log_action"
+              sequence="60"/>
+
+</odoo>

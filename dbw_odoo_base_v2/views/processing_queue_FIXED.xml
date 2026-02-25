@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Processing Queue List View -->
+        <record id="dbw_processing_queue_tree" model="ir.ui.view">
+            <field name="name">dbw.processing.queue.list</field>
+            <field name="model">dbw.processing.queue</field>
+            <field name="arch" type="xml">
+                <list decoration-danger="state == 'failed'" decoration-warning="state == 'processing'" decoration-success="state == 'done'">
+                    <field name="name"/>
+                    <field name="state"/>
+                    <field name="priority"/>
+                    <field name="scheduled_date"/>
+                    <field name="retry_count"/>
+                    <field name="duration_seconds"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Processing Queue Form View -->
+        <record id="dbw_processing_queue_form" model="ir.ui.view">
+            <field name="name">dbw.processing.queue.form</field>
+            <field name="model">dbw.processing.queue</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+                        <button name="action_queue" string="Queue" type="object" invisible="state != 'draft'"/>
+                        <button name="action_execute_now" string="Execute Now" type="object" invisible="state not in ('queued', 'draft')"/>
+                        <button name="action_retry" string="Retry" type="object" invisible="state != 'failed'"/>
+                        <button name="action_cancel" string="Cancel" type="object" invisible="state not in ('draft', 'queued')"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,queued,processing,done"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1><field name="name"/></h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="model_name"/>
+                                <field name="method_name"/>
+                                <field name="priority"/>
+                                <field name="state" invisible="1"/>
+                            </group>
+                            <group>
+                                <field name="scheduled_date"/>
+                                <field name="created_date"/>
+                                <field name="started_date"/>
+                                <field name="completed_date"/>
+                                <field name="duration_seconds"/>
+                            </group>
+                        </group>
+                        
+                        <group string="Pipeline Orchestration">
+                            <field name="triggered_by_id"/>
+                            <field name="next_queue_id"/>
+                        </group>
+                        
+                        <group string="Retry Configuration">
+                            <field name="retry_count"/>
+                            <field name="max_retries"/>
+                            <field name="last_error"/>
+                        </group>
+                        
+                        <group string="Data">
+                            <field name="arguments"/>
+                            <field name="result"/>
+                        </group>
+                        
+                        <group string="Related Products">
+                            <field name="product_ids"/>
+                        </group>
+                        
+                        <group string="Tracking">
+                            <field name="processed_by"/>
+                        </group>
+                        
+                        <notebook>
+                            <page string="Execution Logs">
+                                <field name="log_ids">
+                                    <list>
+                                        <field name="create_date"/>
+                                        <field name="level"/>
+                                        <field name="message"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Search View with Filters -->
+        <record id="dbw_processing_queue_search" model="ir.ui.view">
+            <field name="name">dbw.processing.queue.search</field>
+            <field name="model">dbw.processing.queue</field>
+            <field name="arch" type="xml">
+                <search>
+                    <field name="name"/>
+                    <field name="model_name"/>
+                    <field name="method_name"/>
+                    <filter string="Queued" name="queued" domain="[('state', '=', 'queued')]"/>
+                    <filter string="Processing" name="processing" domain="[('state', '=', 'processing')]"/>
+                    <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
+                    <filter string="Failed" name="failed" domain="[('state', '=', 'failed')]"/>
+                    <filter string="Urgent" name="urgent" domain="[('priority', '=', 'urgent')]"/>
+                    <group string="Group By">
+                        <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                        <filter string="Model" name="group_model" context="{'group_by': 'model_name'}"/>
+                        <filter string="Priority" name="group_priority" context="{'group_by': 'priority'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Action -->
+        <record id="dbw_processing_queue_action" model="ir.actions.act_window">
+            <field name="name">Processing Queue</field>
+            <field name="res_model">dbw.processing.queue</field>
+            <field name="view_mode">list,form</field>
+            <field name="context">{'search_default_queued': 1}</field>
+        </record>
+
+    </data>
+</odoo>

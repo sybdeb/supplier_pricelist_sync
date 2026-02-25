@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Product Template Form View - Add Enrichment Tab -->
+    <record id="product_template_view_form_enrichment" model="ir.ui.view">
+        <field name="name">product.template.view.form.enrichment</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <!-- Add enrichment status in header -->
+            <xpath expr="//form/sheet" position="before">
+                <header>
+                    <button name="action_view_enrichment_logs" type="object" 
+                            string="View Enrichment Logs" 
+                            invisible="enrichment_log_count == 0"
+                            icon="fa-history"/>
+                </header>
+            </xpath>
+            
+            <!-- Add enrichment tab after inventory tab -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Enrichment" name="enrichment">
+                    <group>
+                        <group string="Status">
+                            <field name="enrichment_status" 
+                                   decoration-success="enrichment_status == 'synced'"
+                                   decoration-danger="enrichment_status == 'error'"
+                                   decoration-warning="enrichment_status in ('never_synced', 'outdated')"/>
+                            <field name="needs_enrichment" invisible="1"/>
+                            <field name="last_enrichment_date"/>
+                            <field name="last_enrichment_source"/>
+                        </group>
+                        <group string="Statistics">
+                            <field name="enrichment_log_count"/>
+                        </group>
+                    </group>
+                    
+                    <group string="Recent Enrichment Logs">
+                        <field name="enrichment_log_ids" nolabel="1" mode="tree" 
+                               options="{'no_create': True, 'no_edit': True}">
+                            <list limit="5" create="false" edit="false" delete="false">
+                                <field name="sync_date"/>
+                                <field name="source"/>
+                                <field name="status" decoration-success="status == 'success'" 
+                                       decoration-danger="status == 'error'"/>
+                                <field name="records_created"/>
+                                <field name="error_message"/>
+                            </list>
+                        </field>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Product Template Tree View - Add Enrichment Columns -->
+    <record id="product_template_view_tree_enrichment" model="ir.ui.view">
+        <field name="name">product.template.view.tree.enrichment</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <field name="enrichment_status" optional="hide"/>
+                <field name="last_enrichment_date" optional="hide"/>
+                <field name="needs_enrichment" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Product Template Search View - Add Enrichment Filters -->
+    <record id="product_template_view_search_enrichment" model="ir.ui.view">
+        <field name="name">product.template.view.search.enrichment</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <separator/>
+                <filter name="filter_needs_enrichment" string="Needs Enrichment" 
+                        domain="[('needs_enrichment', '=', True)]"/>
+                <filter name="filter_enriched" string="Enriched" 
+                        domain="[('enrichment_status', '=', 'synced')]"/>
+                <filter name="filter_never_enriched" string="Never Enriched" 
+                        domain="[('enrichment_status', '=', 'never_synced')]"/>
+                <filter name="filter_enrichment_error" string="Enrichment Error" 
+                        domain="[('enrichment_status', '=', 'error')]"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

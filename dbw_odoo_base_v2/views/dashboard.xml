@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Dashboard Form View -->
+    <record id="view_dbw_dashboard_form" model="ir.ui.view">
+        <field name="name">DBW Dashboard</field>
+        <field name="model">dbw.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="DBW Dashboard" create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    
+                    <!-- Summary Stats -->
+                    <group>
+                        <group>
+                            <field name="module_count" readonly="1"/>
+                            <field name="widget_count" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Overview" name="overview">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="alert alert-info" role="alert">
+                                        <h4 class="alert-heading">Welcome to DBW Central Dashboard!</h4>
+                                        <p>This is your central hub for all DBW modules.</p>
+                                        <hr/>
+                                        <p class="mb-0">Install DBW modules to see widgets and statistics here.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Placeholder for dynamic widgets -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <h3>Active Modules</h3>
+                                    <p class="text-muted">Widgets from installed modules will appear here.</p>
+                                </div>
+                            </div>
+                        </page>
+                        
+                        <page string="Modules" name="modules">
+                            <group>
+                                <div class="alert alert-secondary">
+                                    <strong>Installed DBW Modules:</strong>
+                                    <ul class="mt-2">
+                                        <li>dbw_odoo_base (Core Hub) ✅</li>
+                                    </ul>
+                                    <p class="mb-0 mt-3">
+                                        <small>Install additional DBW modules to extend functionality.</small>
+                                    </p>
+                                </div>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

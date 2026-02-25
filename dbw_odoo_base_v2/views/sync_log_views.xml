@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Import History Tree View -->
+    <record id="view_import_history_tree" model="ir.ui.view">
+        <field name="name">supplier.import.history.tree</field>
+        <field name="model">supplier.import.history</field>
+        <field name="arch" type="xml">
+            <list string="Import History">
+                <field name="import_date"/>
+                <field name="name"/>
+                <field name="external_source"/>
+                <field name="import_type"/>
+                <field name="total_rows"/>
+                <field name="success_count"/>
+                <field name="error_count"/>
+                <field name="state"/>
+                <field name="processed_by"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Import History Form View -->
+    <record id="view_import_history_form" model="ir.ui.view">
+        <field name="name">supplier.import.history.form</field>
+        <field name="model">supplier.import.history</field>
+        <field name="arch" type="xml">
+            <form string="Import History">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="import_type"/>
+                            <field name="external_source"/>
+                            <field name="import_date"/>
+                        </group>
+                        <group>
+                            <field name="total_rows"/>
+                            <field name="success_count"/>
+                            <field name="error_count"/>
+                            <field name="processed_by"/>
+                        </group>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Errors">
+                            <field name="error_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="error_type"/>
+                                    <field name="row_number"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Metadata">
+                            <field name="metadata"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Import Error Tree View (BASE - can be inherited by modules) -->
+    <record id="view_import_error_tree" model="ir.ui.view">
+        <field name="name">supplier.import.error.tree</field>
+        <field name="model">supplier.import.error</field>
+        <field name="arch" type="xml">
+            <list string="Import Errors">
+                <field name="history_id"/>
+                <field name="row_number"/>
+                <field name="name"/>
+                <field name="error_type"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Import Error Form View -->
+    <record id="view_import_error_form" model="ir.ui.view">
+        <field name="name">supplier.import.error.form</field>
+        <field name="model">supplier.import.error</field>
+        <field name="arch" type="xml">
+            <form string="Import Error">
+                <header>
+                    <button name="action_resolve" string="Mark Resolved" type="object" class="btn-primary" invisible="state != 'unresolved'"/>
+                    <button name="action_ignore" string="Ignore" type="object" class="btn-secondary" invisible="state != 'unresolved'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="history_id"/>
+                            <field name="error_type"/>
+                            <field name="row_number"/>
+                        </group>
+                        <group>
+                            <field name="resolved_by" readonly="1"/>
+                            <field name="resolved_date" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <group string="Error Details">
+                        <field name="name" nolabel="1"/>
+                    </group>
+                    
+                    <group string="Raw Data">
+                        <field name="raw_data" nolabel="1" widget="text"/>
+                    </group>
+                    
+                    <group string="Resolution">
+                        <field name="resolution_notes" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Import History Action -->
+    <record id="action_import_history" model="ir.actions.act_window">
+        <field name="name">Import History</field>
+        <field name="res_model">supplier.import.history</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Import Error Action -->
+    <record id="action_import_error" model="ir.actions.act_window">
+        <field name="name">Import Errors</field>
+        <field name="res_model">supplier.import.error</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menu Items -->
+    <menuitem
+        id="menu_import_history"
+        name="Import History"
+        parent="menu_dbw_configuration"
+        action="action_import_history"
+        sequence="10"/>
+
+    <menuitem
+        id="menu_import_errors"
+        name="Import Errors"
+        parent="menu_dbw_configuration"
+        action="action_import_error"
+        sequence="20"/>
+
+</odoo>

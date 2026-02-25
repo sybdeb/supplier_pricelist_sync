@@ -1,0 +1,16 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dbw_base_service,dbw.base.service access,model_dbw_base_service,,1,0,0,0
+access_dbw_dashboard,dbw.dashboard access,model_dbw_dashboard,,1,1,1,0
+access_dbw_dashboard_registry,dbw.dashboard.registry access,model_dbw_dashboard_registry,,1,1,1,1
+access_dbw_unified_settings,dbw.unified.settings access,model_dbw_unified_settings,,1,1,1,0
+access_dbw_processing_queue_read,dbw.processing.queue read,model_dbw_processing_queue,base.group_system,1,0,0,0
+access_dbw_processing_queue_write,dbw.processing.queue write,model_dbw_processing_queue,base.group_system,1,1,1,1
+access_dbw_processing_queue_log,dbw.processing.queue.log access,model_dbw_processing_queue_log,base.group_system,1,0,0,0
+access_supplier_import_history_read,supplier.import.history read,model_supplier_import_history,,1,0,0,0
+access_supplier_import_history_write,supplier.import.history write,model_supplier_import_history,base.group_system,1,1,1,1
+access_supplier_import_error_read,supplier.import.error read,model_supplier_import_error,,1,0,0,0
+access_supplier_import_error_write,supplier.import.error write,model_supplier_import_error,base.group_system,1,1,1,1
+access_product_brand_read,product.brand read,model_product_brand,,1,0,0,0
+access_product_brand_write,product.brand write,model_product_brand,base.group_system,1,1,1,1
+access_product_enrichment_log_read,product.enrichment.log read,model_product_enrichment_log,,1,0,0,0
+access_product_enrichment_log_write,product.enrichment.log write,model_product_enrichment_log,base.group_system,1,1,1,1

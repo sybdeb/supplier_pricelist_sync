@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ACTIONS -->
+    <record id="action_dbw_dashboard" model="ir.actions.act_window">
+        <field name="name">DBW Dashboard</field>
+        <field name="res_model">dbw.dashboard</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="view_mode">form</field>
+        <field name="target">main</field>
+    </record>
+
+    <record id="action_dbw_settings" model="ir.actions.act_window">
+        <field name="name">DBW Settings</field>
+        <field name="res_model">dbw.unified.settings</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="view_mode">form</field>
+        <field name="target">main</field>
+    </record>
+
+    <!-- MENUS -->
+    <menuitem id="menu_dbw_root"
+              name="DBW"
+              sequence="10"
+              web_icon="dbw_odoo_base,static/description/icon.png"
+              action="action_dbw_dashboard"/>
+
+    <menuitem id="menu_dbw_dashboard"
+              name="Dashboard"
+              parent="menu_dbw_root"
+              action="action_dbw_dashboard"
+              sequence="5"/>
+
+    <menuitem id="menu_dbw_products"
+              name="Products"
+              parent="menu_dbw_root"
+              sequence="20"/>
+
+    <menuitem id="menu_dbw_settings"
+              name="Settings"
+              parent="menu_dbw_root"
+              action="action_dbw_settings"
+              sequence="85"/>
+
+    <!-- Temporarily disabled - processing_queue.xml has parse errors
+    <menuitem id="menu_dbw_processing_queue"
+              name="Processing Queue"
+              parent="menu_dbw_root"
+              action="dbw_processing_queue_action"
+              sequence="70"/>
+    -->
+
+    <menuitem id="menu_dbw_configuration"
+              name="Configuration"
+              parent="menu_dbw_root"
+              sequence="90"/>
+</odoo>
